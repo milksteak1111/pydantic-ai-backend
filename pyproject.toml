@@ -1,6 +1,6 @@
 [project]
 name = "pydantic-ai-backend"
-version = "0.0.1"
+version = "0.0.3"
 description = "File storage and sandbox backends for AI agents"
 readme = "README.md"
 license = "MIT"
@@ -44,9 +44,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/vstorm-co/pydantic-ai-backends"
-Repository = "https://github.com/vstorm-co/pydantic-ai-backends"
-Issues = "https://github.com/vstorm-co/pydantic-ai-backends/issues"
+Homepage = "https://github.com/vstorm-co/pydantic-ai-backend"
+Repository = "https://github.com/vstorm-co/pydantic-ai-backend"
+Issues = "https://github.com/vstorm-co/pydantic-ai-backend/issues"
 
 [build-system]
 requires = ["hatchling"]

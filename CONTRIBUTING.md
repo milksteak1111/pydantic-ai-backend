@@ -1,6 +1,6 @@
-# Contributing to pydantic-ai-backends
+# Contributing to pydantic-ai-backend
 
-Thank you for your interest in contributing to pydantic-ai-backends!
+Thank you for your interest in contributing to pydantic-ai-backend!
 
 ## Development Setup
 
@@ -14,8 +14,8 @@ Thank you for your interest in contributing to pydantic-ai-backends!
 
 ```bash
 # Clone the repository
-git clone https://github.com/vstorm-co/pydantic-ai-backends.git
-cd pydantic-ai-backends
+git clone https://github.com/vstorm-co/pydantic-ai-backend.git
+cd pydantic-ai-backend
 
 # Install dependencies
 uv sync --all-extras --group dev

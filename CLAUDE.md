@@ -4,7 +4,7 @@ Guidance for Claude Code when working on this repository.
 
 ## What This Project Is
 
-**pydantic-ai-backends** provides file storage and sandbox backends for AI agents. It's designed to work with pydantic-ai and pydantic-deep.
+**pydantic-ai-backend** provides file storage and sandbox backends for AI agents. It's designed to work with pydantic-ai and pydantic-deep.
 
 Key pattern: **Protocol-based backends** - all backends implement `BackendProtocol` for consistent file operations.
 

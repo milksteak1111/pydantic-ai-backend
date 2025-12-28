@@ -1,6 +1,6 @@
 """File storage and sandbox backends for AI agents.
 
-pydantic-ai-backends provides a unified interface for file storage and
+pydantic-ai-backend provides a unified interface for file storage and
 command execution across different backends (in-memory, filesystem, Docker).
 
 Basic usage:
@@ -20,7 +20,7 @@ Docker sandbox (requires optional dependencies):
     ```python
     from pydantic_ai_backends import DockerSandbox, RuntimeConfig
 
-    # pip install pydantic-ai-backends[docker]
+    # pip install pydantic-ai-backend[docker]
     sandbox = DockerSandbox(image="python:3.12-slim")
     result = sandbox.execute("python -c 'print(1+1)'")
     print(result.output)  # "2"
@@ -98,4 +98,4 @@ __all__ = [
     "get_runtime",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.0.1"

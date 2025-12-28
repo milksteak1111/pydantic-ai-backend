@@ -37,7 +37,7 @@ def _get_chardet() -> ModuleType:  # pragma: no cover
     except ImportError as e:
         raise ImportError(
             "chardet package required for encoding detection. "
-            "Install with: pip install pydantic-ai-backends[docker]"
+            "Install with: pip install pydantic-ai-backend[docker]"
         ) from e
 
 
@@ -50,7 +50,7 @@ def _get_pypdf() -> ModuleType:  # pragma: no cover
     except ImportError as e:
         raise ImportError(
             "pypdf package required for PDF reading. "
-            "Install with: pip install pydantic-ai-backends[docker]"
+            "Install with: pip install pydantic-ai-backend[docker]"
         ) from e
 
 
@@ -369,7 +369,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         except ImportError as e:
             raise ImportError(
                 "Docker package not installed. "
-                "Install with: pip install pydantic-ai-backends[docker]"
+                "Install with: pip install pydantic-ai-backend[docker]"
             ) from e
 
         client = docker.from_env()
@@ -432,7 +432,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
         # Generate unique tag based on config
         config_hash = hashlib.md5(runtime.model_dump_json().encode()).hexdigest()[:12]
-        image_tag = f"pydantic-ai-backends-runtime:{runtime.name}-{config_hash}"
+        image_tag = f"pydantic-ai-backend-runtime:{runtime.name}-{config_hash}"
 
         # Check if image exists (cache)
         if runtime.cache_image:
@@ -838,7 +838,7 @@ class LocalSandbox(BaseSandbox):  # pragma: no cover
 
     def __init__(
         self,
-        work_dir: str = "/tmp/pydantic-ai-backends-sandbox",
+        work_dir: str = "/tmp/pydantic-ai-backend-sandbox",
         sandbox_id: str | None = None,
     ):
         """Initialize local sandbox.

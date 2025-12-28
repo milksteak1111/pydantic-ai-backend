@@ -1,6 +1,6 @@
-# pydantic-ai-backends
+# pydantic-ai-backend
 
-[![PyPI version](https://img.shields.io/pypi/v/pydantic-ai-backends.svg)](https://pypi.org/project/pydantic-ai-backends/)
+[![PyPI version](https://img.shields.io/pypi/v/pydantic-ai-backend.svg)](https://pypi.org/project/pydantic-ai-backend/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -19,13 +19,13 @@ File storage and sandbox backends for AI agents. Works with [pydantic-ai](https:
 ## Installation
 
 ```bash
-pip install pydantic-ai-backends
+pip install pydantic-ai-backend
 ```
 
 With Docker sandbox support:
 
 ```bash
-pip install pydantic-ai-backends[docker]
+pip install pydantic-ai-backend[docker]
 ```
 
 ## Quick Start
@@ -188,8 +188,8 @@ backend = StateBackend()
 
 ```bash
 # Clone and install
-git clone https://github.com/vstorm-co/pydantic-ai-backends.git
-cd pydantic-ai-backends
+git clone https://github.com/vstorm-co/pydantic-ai-backend.git
+cd pydantic-ai-backend
 make install
 
 # Run tests
