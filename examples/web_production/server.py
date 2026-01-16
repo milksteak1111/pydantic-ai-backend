@@ -7,16 +7,16 @@ Requires: pip install pydantic-ai-backend[docker] fastapi uvicorn pydantic-ai ji
 """
 
 import asyncio
+import contextlib
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import AsyncGenerator
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-
 from pydantic_ai import Agent
 
 from pydantic_ai_backends import (
@@ -25,7 +25,6 @@ from pydantic_ai_backends import (
     create_console_toolset,
     get_console_system_prompt,
 )
-
 
 # ============================================================================
 # Session Manager (handles multiple users)
@@ -50,10 +49,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Cleanup all sessions on shutdown
     if session_manager:
         for session_id in list(session_manager._sandboxes.keys()):
-            try:
+            with contextlib.suppress(Exception):
                 await asyncio.to_thread(session_manager.end_session, session_id)
-            except Exception:
-                pass
 
 
 app = FastAPI(
@@ -176,7 +173,7 @@ async def end_session(session_id: str) -> dict[str, str]:
         await asyncio.to_thread(session_manager.end_session, session_id)
         return {"message": "Session ended successfully"}
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(404, str(e)) from None
 
 
 @app.get("/sessions/{session_id}/files")
@@ -188,7 +185,7 @@ async def list_files(session_id: str, path: str = ".") -> dict[str, list[dict]]:
     try:
         sandbox = session_manager.get_session(session_id)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(404, str(e)) from None
 
     files = sandbox.ls_info(path)
     return {"files": files}
@@ -203,7 +200,7 @@ async def read_file(session_id: str, path: str) -> dict[str, str]:
     try:
         sandbox = session_manager.get_session(session_id)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(404, str(e)) from None
 
     content = sandbox.read(path)
     return {"content": content}
@@ -218,7 +215,7 @@ async def write_file(session_id: str, request: WriteFileRequest) -> dict[str, st
     try:
         sandbox = session_manager.get_session(session_id)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(404, str(e)) from None
 
     result = sandbox.write(request.path, request.content)
     if result.error:
@@ -236,7 +233,7 @@ async def execute_command(session_id: str, request: ExecuteRequest) -> ExecuteRe
     try:
         sandbox = session_manager.get_session(session_id)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(404, str(e)) from None
 
     result = sandbox.execute(request.command, timeout=request.timeout)
     return ExecuteResponse(
@@ -254,7 +251,7 @@ async def chat(session_id: str, request: ChatRequest) -> ChatResponse:
     try:
         sandbox = session_manager.get_session(session_id)
     except ValueError as e:
-        raise HTTPException(404, str(e))
+        raise HTTPException(404, str(e)) from None
 
     deps = UserDeps(backend=sandbox, user_id=session_id)
     result = await user_agent.run(request.message, deps=deps)

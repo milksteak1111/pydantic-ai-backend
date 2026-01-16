@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from io import BytesIO
 from pathlib import Path, PurePosixPath
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from pydantic_ai_backends.types import (
     EditResult,
@@ -33,7 +33,7 @@ def _get_chardet() -> ModuleType:  # pragma: no cover
     try:
         import chardet
 
-        return chardet  # type: ignore[no-any-return]
+        return cast(ModuleType, chardet)
     except ImportError as e:
         raise ImportError(
             "chardet package required for encoding detection. "
@@ -46,7 +46,7 @@ def _get_pypdf() -> ModuleType:  # pragma: no cover
     try:
         import pypdf
 
-        return pypdf  # type: ignore[no-any-return]
+        return cast(ModuleType, pypdf)
     except ImportError as e:
         raise ImportError(
             "pypdf package required for PDF reading. "

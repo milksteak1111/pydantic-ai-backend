@@ -1,7 +1,5 @@
 """Extended tests for backend implementations to reach 100% coverage."""
 
-import pytest
-
 from pydantic_ai_backends import CompositeBackend, LocalBackend, StateBackend
 from pydantic_ai_backends.backends.state import _normalize_path, _validate_path
 
