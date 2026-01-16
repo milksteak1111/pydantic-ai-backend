@@ -386,6 +386,12 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         if self._runtime and self._runtime.env_vars:
             env_vars = self._runtime.env_vars
 
+        # Convert simple volume format to Docker SDK format
+        # {"/host": "/container"} -> {"/host": {"bind": "/container", "mode": "rw"}}
+        docker_volumes: dict[str, dict[str, str]] = {}
+        for host_path, container_path in self._volumes.items():
+            docker_volumes[host_path] = {"bind": container_path, "mode": "rw"}
+
         self._container = client.containers.run(
             image,
             command="sleep infinity",
@@ -393,7 +399,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
             working_dir=self._work_dir,
             auto_remove=self._auto_remove,
             environment=env_vars,
-            volumes=self._volumes,
+            volumes=docker_volumes if docker_volumes else None,
         )
 
     def _ensure_runtime_image(self, client: object) -> str:
