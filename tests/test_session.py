@@ -17,6 +17,7 @@ class MockDockerSandbox:
         runtime: RuntimeConfig | str | None = None,
         session_id: str | None = None,
         idle_timeout: int = 3600,
+        volumes: dict[str, str] | None = None,
         **kwargs: object,
     ) -> None:
         self._id = session_id or "test-id"
@@ -24,6 +25,7 @@ class MockDockerSandbox:
         self._idle_timeout = idle_timeout
         self._last_activity = time.time()
         self._alive = True
+        self._volumes = volumes or {}
 
     @property
     def session_id(self) -> str:
@@ -228,3 +230,70 @@ class TestSessionManager:
         manager = SessionManager()
         manager.stop_cleanup_loop()  # Should not raise
         assert manager._cleanup_task is None
+
+    def test_init_with_workspace_root_string(self):
+        """Test initialization with workspace_root as string."""
+        manager = SessionManager(workspace_root="/tmp/sessions")
+        assert manager._workspace_root is not None
+        assert str(manager._workspace_root) == "/tmp/sessions"
+
+    def test_init_with_workspace_root_path(self):
+        """Test initialization with workspace_root as Path."""
+        from pathlib import Path
+
+        manager = SessionManager(workspace_root=Path("/tmp/sessions"))
+        assert manager._workspace_root is not None
+        assert str(manager._workspace_root) == "/tmp/sessions"
+
+    def test_init_without_workspace_root(self):
+        """Test initialization without workspace_root."""
+        manager = SessionManager()
+        assert manager._workspace_root is None
+
+    @pytest.mark.asyncio
+    async def test_get_or_create_with_workspace_root(self, tmp_path):
+        """Test that workspace_root creates directories and passes volumes."""
+        manager = SessionManager(workspace_root=tmp_path)
+
+        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+            sandbox = await manager.get_or_create("user-123")
+
+            # Check that directory was created
+            expected_dir = tmp_path / "user-123" / "workspace"
+            assert expected_dir.exists()
+            assert expected_dir.is_dir()
+
+            # Check that volumes were passed to sandbox
+            assert sandbox._volumes is not None
+            assert str(expected_dir.resolve()) in sandbox._volumes
+            assert sandbox._volumes[str(expected_dir.resolve())] == "/workspace"
+
+    @pytest.mark.asyncio
+    async def test_get_or_create_without_workspace_root_no_volumes(self):
+        """Test that without workspace_root, no volumes are set."""
+        manager = SessionManager()
+
+        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+            sandbox = await manager.get_or_create("user-123")
+            assert sandbox._volumes == {}
+
+    @pytest.mark.asyncio
+    async def test_get_or_create_multiple_sessions_separate_dirs(self, tmp_path):
+        """Test that multiple sessions get separate workspace directories."""
+        manager = SessionManager(workspace_root=tmp_path)
+
+        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+            sandbox1 = await manager.get_or_create("user-1")
+            sandbox2 = await manager.get_or_create("user-2")
+
+            # Check separate directories
+            dir1 = tmp_path / "user-1" / "workspace"
+            dir2 = tmp_path / "user-2" / "workspace"
+
+            assert dir1.exists()
+            assert dir2.exists()
+            assert dir1 != dir2
+
+            # Check separate volumes
+            assert str(dir1.resolve()) in sandbox1._volumes
+            assert str(dir2.resolve()) in sandbox2._volumes
