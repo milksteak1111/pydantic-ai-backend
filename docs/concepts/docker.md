@@ -1,22 +1,40 @@
 # Docker Sandbox
 
-`DockerSandbox` provides isolated code execution in Docker containers.
+`DockerSandbox` provides isolated code execution for your pydantic-ai agents. Run untrusted code safely in Docker containers.
 
 !!! warning "Requires Docker"
-    Install Docker and ensure the daemon is running.
+    ```bash
+    pip install pydantic-ai-backend[docker]
+    ```
+    Ensure Docker is installed and the daemon is running.
 
-## Basic Usage
+## Basic Usage with pydantic-ai
 
 ```python
-from pydantic_ai_backends import DockerSandbox
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai_backends import DockerSandbox, create_console_toolset
 
-sandbox = DockerSandbox(image="python:3.12-slim")
+@dataclass
+class Deps:
+    backend: DockerSandbox
+
+# Create sandbox with pre-configured runtime
+sandbox = DockerSandbox(runtime="python-datascience")
 
 try:
-    # Write and execute code
-    sandbox.write("/workspace/hello.py", "print('Hello from Docker!')")
-    result = sandbox.execute("python /workspace/hello.py")
-    print(result.output)  # "Hello from Docker!"
+    # Add console tools to your agent
+    toolset = create_console_toolset()
+    agent = Agent("openai:gpt-4o", deps_type=Deps)
+    agent = agent.with_toolset(toolset)
+
+    # Agent can safely execute arbitrary code in Docker
+    result = agent.run_sync(
+        "Load the iris dataset with sklearn, analyze it with pandas, "
+        "and create a visualization with matplotlib",
+        deps=Deps(backend=sandbox),
+    )
+    print(result.output)
 finally:
     sandbox.stop()  # Clean up container
 ```
@@ -31,7 +49,7 @@ from pydantic_ai_backends import DockerSandbox, RuntimeConfig
 # Use built-in runtime
 sandbox = DockerSandbox(runtime="python-datascience")
 
-# Or define custom runtime
+# Or define custom runtime for your use case
 runtime = RuntimeConfig(
     name="ml-env",
     base_image="python:3.12-slim",
@@ -42,46 +60,51 @@ sandbox = DockerSandbox(runtime=runtime)
 
 ### Built-in Runtimes
 
-| Runtime | Description |
-|---------|-------------|
-| `python-minimal` | Clean Python 3.12 |
-| `python-datascience` | pandas, numpy, matplotlib, scikit-learn, seaborn |
-| `python-web` | FastAPI, SQLAlchemy, httpx |
-| `node-minimal` | Clean Node.js 20 |
-| `node-react` | TypeScript, Vite, React |
+| Runtime | Description | Use Case |
+|---------|-------------|----------|
+| `python-minimal` | Clean Python 3.12 | General scripting |
+| `python-datascience` | pandas, numpy, matplotlib, scikit-learn, seaborn | Data analysis |
+| `python-web` | FastAPI, SQLAlchemy, httpx | Web development |
+| `node-minimal` | Clean Node.js 20 | JavaScript/TypeScript |
+| `node-react` | TypeScript, Vite, React | Frontend development |
 
-## Persistent Storage
+## SessionManager for Multi-User
 
-By default, files are lost when container stops. Use volumes for persistence:
-
-```python
-sandbox = DockerSandbox(
-    image="python:3.12-slim",
-    volumes={"/host/data": "/workspace/data"},  # Mount host directory
-)
-```
-
-## SessionManager
-
-For multi-user applications, `SessionManager` handles multiple isolated sandboxes:
+For web apps where each user needs isolated execution:
 
 ```python
-from pydantic_ai_backends import SessionManager
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai_backends import SessionManager, DockerSandbox, create_console_toolset
 
+@dataclass
+class UserDeps:
+    backend: DockerSandbox
+    user_id: str
+
+# Create session manager
 manager = SessionManager(
-    image="python:3.12-slim",
+    default_runtime="python-datascience",
     workspace_root="/app/workspaces",  # Persistent storage per user
 )
 
-# Create session for user
-session_id = manager.create_session(user_id="alice")
-sandbox = manager.get_session(session_id)
+async def handle_user_request(user_id: str, message: str):
+    # Get or create sandbox for this user
+    sandbox = await manager.get_or_create(user_id)
 
-# User's files are isolated
-sandbox.write("/workspace/secret.txt", "Alice's data")
+    # Create agent with user's isolated sandbox
+    toolset = create_console_toolset()
+    agent = Agent("openai:gpt-4o", deps_type=UserDeps)
+    agent = agent.with_toolset(toolset)
 
-# End session
-manager.end_session(session_id)
+    result = await agent.run(
+        message,
+        deps=UserDeps(backend=sandbox, user_id=user_id),
+    )
+    return result.output
+
+# Each user's code runs in isolated container
+# User A cannot see User B's files
 ```
 
 ### Architecture
@@ -96,40 +119,28 @@ manager.end_session(session_id)
 ┌───────▼───────┐   ┌───────▼───────┐   ┌───────▼───────┐
 │ DockerSandbox │   │ DockerSandbox │   │ DockerSandbox │
 │   (User A)    │   │   (User B)    │   │   (User C)    │
+│  pydantic-ai  │   │  pydantic-ai  │   │  pydantic-ai  │
+│    Agent      │   │    Agent      │   │    Agent      │
 └───────────────┘   └───────────────┘   └───────────────┘
 ```
 
-## Execution
+## Persistent Storage
+
+By default, files are lost when container stops. Use volumes for persistence:
 
 ```python
-# Execute with timeout
-result = sandbox.execute("python script.py", timeout=30)
-
-print(result.output)      # stdout + stderr
-print(result.exit_code)   # 0 = success
-print(result.truncated)   # True if output was truncated
+sandbox = DockerSandbox(
+    runtime="python-datascience",
+    volumes={"/host/data": "/workspace/data"},  # Mount host directory
+)
 ```
 
-## File Operations
-
-DockerSandbox implements the full `BackendProtocol`:
+With SessionManager, each user gets their own persistent directory:
 
 ```python
-# List files
-files = sandbox.ls_info("/workspace")
-
-# Read file
-content = sandbox.read("/workspace/app.py")
-
-# Write file
-sandbox.write("/workspace/app.py", "print('hello')")
-
-# Edit file
-sandbox.edit("/workspace/app.py", "hello", "world")
-
-# Search
-matches = sandbox.grep_raw("def.*:", path="/workspace")
-files = sandbox.glob_info("*.py", path="/workspace")
+manager = SessionManager(
+    workspace_root="/app/workspaces",  # Creates /app/workspaces/{user_id}/
+)
 ```
 
 ## Security
@@ -138,6 +149,7 @@ files = sandbox.glob_info("*.py", path="/workspace")
 - Users cannot access each other's files
 - Containers can have resource limits (CPU, memory)
 - Network isolation available via Docker networking
+- No host filesystem access (unless explicitly mounted)
 
 ## Next Steps
 

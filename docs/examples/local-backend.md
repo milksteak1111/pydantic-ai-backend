@@ -1,78 +1,81 @@
 # Local Backend Example
 
-`LocalBackend` provides local filesystem operations with optional shell execution.
+Build a pydantic-ai agent that works with local files using `LocalBackend`.
 
-## Basic Usage
+## Quick Start
 
 ```python
-from pydantic_ai_backends import LocalBackend
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai_backends import LocalBackend, create_console_toolset
 
-# Create backend
-backend = LocalBackend(root_dir="/workspace")
+@dataclass
+class Deps:
+    backend: LocalBackend
 
-# Write a file
-backend.write("hello.py", "print('Hello, World!')")
+# Create backend for local filesystem
+backend = LocalBackend(root_dir="./workspace")
 
-# Read it back
-content = backend.read("hello.py")
-print(content)
-#      1	print('Hello, World!')
+# Add file tools to your agent
+toolset = create_console_toolset()
+agent = Agent("openai:gpt-4o", deps_type=Deps)
+agent = agent.with_toolset(toolset)
 
-# Execute it
-result = backend.execute("python hello.py")
-print(result.output)  # Hello, World!
+# Your agent can now work with files!
+result = agent.run_sync(
+    "Create a fibonacci.py script that calculates fib(10) and run it",
+    deps=Deps(backend=backend),
+)
+print(result.output)
 ```
 
-## File Operations
+## Complete CLI Agent
 
-### List Files
-
-```python
-files = backend.ls_info(".")
-for f in files:
-    if f["is_dir"]:
-        print(f"[DIR]  {f['name']}")
-    else:
-        print(f"[FILE] {f['name']} ({f['size']} bytes)")
-```
-
-### Read with Pagination
+Interactive coding assistant that works with your local project:
 
 ```python
-# Read first 50 lines
-content = backend.read("large_file.py", offset=0, limit=50)
+import asyncio
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai_backends import (
+    LocalBackend, create_console_toolset, get_console_system_prompt
+)
 
-# Read lines 100-150
-content = backend.read("large_file.py", offset=100, limit=50)
-```
+@dataclass
+class Deps:
+    backend: LocalBackend
 
-### Edit File
+# Create backend with security restrictions
+backend = LocalBackend(
+    root_dir=".",
+    allowed_directories=["./"],  # Restrict to current dir
+    enable_execute=True,
+)
 
-```python
-# Replace single occurrence (must be unique)
-result = backend.edit("app.py", "old_text", "new_text")
+# Create agent with file tools
+toolset = create_console_toolset()
+agent = Agent(
+    "openai:gpt-4o",
+    system_prompt=f"""You are a helpful coding assistant.
+{get_console_system_prompt()}
+""",
+    deps_type=Deps,
+)
+agent = agent.with_toolset(toolset)
 
-# Replace all occurrences
-result = backend.edit("app.py", "old_text", "new_text", replace_all=True)
+async def main():
+    deps = Deps(backend=backend)
+    print("CLI Agent ready! Type 'quit' to exit.\n")
 
-if result.error:
-    print(f"Error: {result.error}")
-else:
-    print(f"Replaced {result.occurrences} occurrence(s)")
-```
+    while True:
+        user_input = input("You: ").strip()
+        if user_input.lower() in ("quit", "exit"):
+            break
 
-### Search Files
+        result = await agent.run(user_input, deps=deps)
+        print(f"\nAgent: {result.output}\n")
 
-```python
-# Find Python files
-py_files = backend.glob_info("**/*.py", ".")
-for f in py_files:
-    print(f["path"])
-
-# Search for pattern
-matches = backend.grep_raw(r"def \w+\(", path=".")
-for m in matches:
-    print(f"{m['path']}:{m['line_number']}: {m['line']}")
+asyncio.run(main())
 ```
 
 ## Security Options
@@ -80,6 +83,14 @@ for m in matches:
 ### Restricted Directories
 
 ```python
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai_backends import LocalBackend, create_console_toolset
+
+@dataclass
+class Deps:
+    backend: LocalBackend
+
 # Only allow access to specific directories
 backend = LocalBackend(
     allowed_directories=[
@@ -88,11 +99,10 @@ backend = LocalBackend(
     ],
 )
 
-# This works
-backend.read("/home/user/project/app.py")
+toolset = create_console_toolset()
+agent = Agent("openai:gpt-4o", deps_type=Deps).with_toolset(toolset)
 
-# This fails
-backend.read("/etc/passwd")  # Error: path not allowed
+# Agent can access /home/user/project but NOT /etc/passwd
 ```
 
 ### Disable Execution
@@ -104,48 +114,50 @@ backend = LocalBackend(
     enable_execute=False,
 )
 
-backend.read("file.py")      # OK
-backend.execute("ls")        # Error: execution disabled
+# Toolset without execute command
+toolset = create_console_toolset(include_execute=False)
 ```
 
-## With pydantic-ai
+## Example Session
 
-```python
-from dataclasses import dataclass
-from pydantic_ai import Agent
-from pydantic_ai_backends import LocalBackend, create_console_toolset
+```
+CLI Agent ready! Type 'quit' to exit.
 
-@dataclass
-class Deps:
-    backend: LocalBackend
+You: Show me the project structure
 
-# Create backend with restrictions
-backend = LocalBackend(
-    root_dir="/workspace",
-    allowed_directories=["/workspace"],
-    enable_execute=True,
-)
+Agent: Let me list the files in the current directory.
 
-# Create toolset and agent
-toolset = create_console_toolset()
-agent = Agent(
-    "openai:gpt-4o",
-    deps_type=Deps,
-    system_prompt="You are a helpful coding assistant.",
-)
-agent = agent.with_toolset(toolset)
+Contents of .:
+  src/
+  tests/
+  README.md
+  pyproject.toml
 
-# Run
-result = agent.run_sync(
-    "Create a fibonacci function in Python and test it",
-    deps=Deps(backend=backend),
-)
-print(result.output)
+The project has:
+- `src/` - Source code
+- `tests/` - Test files
+- `README.md` - Documentation
+- `pyproject.toml` - Project config
+
+You: Create a fibonacci function
+
+Agent: I'll create a fibonacci.py file with the function.
+
+Created fibonacci.py with a fibonacci function that calculates
+the nth Fibonacci number using recursion with memoization.
+
+You: Run it with n=10
+
+Agent: Running the script...
+
+Output: 55
+
+The 10th Fibonacci number is 55.
 ```
 
-## Full CLI Example
+## Full Example
 
-See [`examples/local_cli/`](https://github.com/vstorm-co/pydantic-ai-backend/tree/main/examples/local_cli) for a complete interactive CLI agent.
+See [`examples/local_cli/`](https://github.com/vstorm-co/pydantic-ai-backend/tree/main/examples/local_cli) for a complete implementation:
 
 ```bash
 cd examples/local_cli

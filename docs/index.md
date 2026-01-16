@@ -1,7 +1,7 @@
 # pydantic-ai-backend
 
 <p style="font-size: 1.3em; color: #888; margin-top: -0.5em;">
-File storage and sandbox backends for AI agents
+File storage and sandbox backends for pydantic-ai agents
 </p>
 
 [![PyPI version](https://img.shields.io/pypi/v/pydantic-ai-backend.svg)](https://pypi.org/project/pydantic-ai-backend/)
@@ -12,16 +12,16 @@ File storage and sandbox backends for AI agents
 
 ---
 
-**pydantic-ai-backend** provides file storage, sandbox execution, and a ready-to-use console toolset for [Pydantic AI](https://ai.pydantic.dev/) agents.
+**pydantic-ai-backend** provides file storage, sandbox execution, and a ready-to-use console toolset for [pydantic-ai](https://ai.pydantic.dev/) agents. Give your AI agents the ability to read, write, and execute code safely.
 
 ## Why use pydantic-ai-backend?
 
-Building AI agents that work with files and execute code requires careful handling of storage, isolation, and security. pydantic-ai-backend provides:
+When building [pydantic-ai](https://ai.pydantic.dev/) agents that work with files and execute code, you need storage, isolation, and security. **pydantic-ai-backend** provides:
 
 <div class="feature-grid">
 <div class="feature-card">
-<h3>📁 File Storage</h3>
-<p>Multiple backends: in-memory, local filesystem, Docker. Read, write, edit with glob and grep support.</p>
+<h3>🔌 Plug & Play Toolset</h3>
+<p>Ready-to-use pydantic-ai toolset with ls, read, write, edit, glob, grep, execute. Just add to your agent.</p>
 </div>
 
 <div class="feature-card">
@@ -30,17 +30,19 @@ Building AI agents that work with files and execute code requires careful handli
 </div>
 
 <div class="feature-card">
-<h3>🛠️ Console Toolset</h3>
-<p>Ready-to-use pydantic-ai tools: ls, read, write, edit, glob, grep, execute. Just plug and play.</p>
+<h3>📁 Multiple Backends</h3>
+<p>In-memory (testing), local filesystem (CLI), Docker (production). Same interface, swap backends.</p>
 </div>
 
 <div class="feature-card">
-<h3>👥 Multi-User</h3>
+<h3>👥 Multi-User Ready</h3>
 <p>SessionManager for multi-user apps. Each user gets isolated storage and execution environment.</p>
 </div>
 </div>
 
 ## Quick Start
+
+Add file and execution capabilities to any pydantic-ai agent:
 
 ```python
 from dataclasses import dataclass
@@ -55,37 +57,80 @@ class Deps:
 backend = LocalBackend(root_dir="/workspace")
 toolset = create_console_toolset()
 
-# Create agent with console tools
+# Add toolset to your pydantic-ai agent
 agent = Agent("openai:gpt-4o", deps_type=Deps)
 agent = agent.with_toolset(toolset)
 
-# Run agent
+# Your agent can now read, write, and execute code!
 result = agent.run_sync(
-    "Create a hello.py script and run it",
+    "Create a fibonacci.py script and run it to show first 10 numbers",
     deps=Deps(backend=backend),
 )
 print(result.output)
 ```
 
-## Key Features
+## Choose Your Backend
 
-| Feature | Description |
-|---------|-------------|
-| **LocalBackend** | Local filesystem + shell execution |
-| **StateBackend** | In-memory storage for testing |
-| **DockerSandbox** | Isolated Docker container execution |
-| **CompositeBackend** | Route operations by path prefix |
-| **Console Toolset** | Ready-to-use pydantic-ai tools |
-| **SessionManager** | Multi-user session management |
-| **RuntimeConfig** | Pre-configured Docker environments |
+Same toolset, different backends - swap based on your use case:
 
-## Available Backends
+=== "Local Development"
 
-| Backend | Persistence | Execution | Use Case |
+    ```python
+    from pydantic_ai_backends import LocalBackend
+
+    # For CLI tools and local development
+    backend = LocalBackend(root_dir="./workspace")
+    ```
+
+=== "Testing"
+
+    ```python
+    from pydantic_ai_backends import StateBackend
+
+    # In-memory, no side effects
+    backend = StateBackend()
+    ```
+
+=== "Production (Docker)"
+
+    ```python
+    from pydantic_ai_backends import DockerSandbox
+
+    # Isolated execution in Docker
+    backend = DockerSandbox(runtime="python-datascience")
+    ```
+
+=== "Multi-User"
+
+    ```python
+    from pydantic_ai_backends import SessionManager
+
+    # Each user gets isolated sandbox
+    manager = SessionManager(workspace_root="/app/workspaces")
+    backend = await manager.get_or_create(user_id="alice")
+    ```
+
+## Available Tools
+
+Your pydantic-ai agent gets these tools automatically:
+
+| Tool | Description |
+|------|-------------|
+| `ls` | List files in a directory |
+| `read_file` | Read file content with line numbers |
+| `write_file` | Create or overwrite a file |
+| `edit_file` | Replace strings in a file |
+| `glob` | Find files matching a pattern |
+| `grep` | Search for patterns in files |
+| `execute` | Run shell commands (optional) |
+
+## Backend Comparison
+
+| Backend | Persistence | Execution | Best For |
 |---------|-------------|-----------|----------|
-| `LocalBackend` | Persistent | Yes | CLI tools, local development |
-| `StateBackend` | Ephemeral | No | Testing, temporary files |
-| `DockerSandbox` | Ephemeral* | Yes | Safe code execution, multi-user |
+| `LocalBackend` | Persistent | Yes | CLI tools, local dev |
+| `StateBackend` | Ephemeral | No | Testing, mocking |
+| `DockerSandbox` | Ephemeral* | Yes | Safe execution, multi-user |
 | `CompositeBackend` | Mixed | Depends | Route by path prefix |
 
 *DockerSandbox supports persistent volumes via `workspace_root` parameter.

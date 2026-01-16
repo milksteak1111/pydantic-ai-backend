@@ -1,40 +1,60 @@
 # Backends
 
-Backends provide file storage and operations for AI agents. All backends implement `BackendProtocol`.
+Backends provide file storage for your pydantic-ai agents. All backends implement `BackendProtocol`, so you can swap them without changing your agent code.
 
-## Available Backends
+## Quick Comparison
 
-| Backend | Persistence | Execution | Use Case |
+| Backend | Persistence | Execution | Best For |
 |---------|-------------|-----------|----------|
 | `LocalBackend` | Persistent | Yes | CLI tools, local development |
-| `StateBackend` | Ephemeral | No | Testing, temporary files |
-| `DockerSandbox` | Ephemeral* | Yes | Safe code execution |
+| `StateBackend` | Ephemeral | No | Unit testing, mocking |
+| `DockerSandbox` | Ephemeral* | Yes | Safe execution, multi-user |
 | `CompositeBackend` | Mixed | Depends | Route by path prefix |
 
 ## LocalBackend
 
-Local filesystem operations with optional shell execution. Python-native, cross-platform.
+Local filesystem with optional shell execution. Use for CLI tools and local development.
 
 ```python
-from pydantic_ai_backends import LocalBackend
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai_backends import LocalBackend, create_console_toolset
 
-# Full access with shell
-backend = LocalBackend(root_dir="/workspace")
-backend.write("app.py", "print('hello')")
-result = backend.execute("python app.py")
-print(result.output)  # "hello"
+@dataclass
+class Deps:
+    backend: LocalBackend
 
-# Restricted directories
+# Backend for local development
+backend = LocalBackend(root_dir="./workspace")
+
+# Create agent with file tools
+toolset = create_console_toolset()
+agent = Agent("openai:gpt-4o", deps_type=Deps).with_toolset(toolset)
+
+# Agent can now work with local files
+result = agent.run_sync(
+    "Create a todo.py CLI app and test it",
+    deps=Deps(backend=backend),
+)
+```
+
+### Security Options
+
+```python
+# Restrict to specific directories
 backend = LocalBackend(
     allowed_directories=["/home/user/project", "/home/user/data"],
     enable_execute=True,
 )
 
-# Read-only mode (no shell)
+# Read-only mode (no shell execution)
 backend = LocalBackend(
     root_dir="/workspace",
     enable_execute=False,
 )
+
+# Corresponding toolset without execute
+toolset = create_console_toolset(include_execute=False)
 ```
 
 ### Features
@@ -47,24 +67,43 @@ backend = LocalBackend(
 
 ## StateBackend
 
-In-memory storage, ideal for testing.
+In-memory storage - perfect for testing your pydantic-ai agents.
 
 ```python
-from pydantic_ai_backends import StateBackend
+import pytest
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai.models.test import TestModel
+from pydantic_ai_backends import StateBackend, create_console_toolset
 
-backend = StateBackend()
-backend.write("/src/app.py", "print('hello')")
-print(backend.read("/src/app.py"))
+@dataclass
+class Deps:
+    backend: StateBackend
 
-# Access all files
-print(backend.files.keys())
+def test_agent_creates_file():
+    """Test that agent can create files."""
+    backend = StateBackend()
+    toolset = create_console_toolset(include_execute=False)
+
+    # Use TestModel for deterministic testing
+    agent = Agent(TestModel(), deps_type=Deps).with_toolset(toolset)
+
+    # Pre-populate files if needed
+    backend.write("/data/input.txt", "test data")
+
+    # Run agent
+    result = agent.run_sync("Read input.txt", deps=Deps(backend=backend))
+
+    # Verify files
+    assert "/data/input.txt" in backend.files
 ```
 
 ### Features
 
 - ✅ Fast - no disk I/O
 - ✅ Isolated - no side effects
-- ✅ Perfect for testing
+- ✅ Perfect for unit testing
+- ✅ Access files via `backend.files`
 - ❌ Data lost when process ends
 - ❌ No command execution
 
@@ -73,8 +112,17 @@ print(backend.files.keys())
 Route operations to different backends based on path prefix.
 
 ```python
-from pydantic_ai_backends import CompositeBackend, StateBackend, LocalBackend
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai_backends import (
+    CompositeBackend, StateBackend, LocalBackend, create_console_toolset
+)
 
+@dataclass
+class Deps:
+    backend: CompositeBackend
+
+# Combine backends with routing
 backend = CompositeBackend(
     default=StateBackend(),  # Default for unmatched paths
     routes={
@@ -83,18 +131,22 @@ backend = CompositeBackend(
     },
 )
 
-# Routes to LocalBackend
-backend.write("/project/app.py", "...")
+toolset = create_console_toolset()
+agent = Agent("openai:gpt-4o", deps_type=Deps).with_toolset(toolset)
 
-# Routes to StateBackend (default)
-backend.write("/temp/scratch.txt", "...")
+# Agent writes to /project/ go to LocalBackend
+# Agent writes to /temp/ go to StateBackend (ephemeral)
+result = agent.run_sync(
+    "Read /data/config.json and write results to /temp/output.json",
+    deps=Deps(backend=backend),
+)
 ```
 
 ### Use Cases
 
 - Persistent project files + ephemeral scratch space
 - Multiple project directories
-- Read-only data + writable outputs
+- Read-only data sources + writable outputs
 
 ## Backend Protocol
 

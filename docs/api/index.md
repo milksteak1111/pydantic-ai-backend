@@ -2,6 +2,24 @@
 
 Complete API documentation for pydantic-ai-backend.
 
+## Quick Example
+
+```python
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai_backends import LocalBackend, create_console_toolset
+
+@dataclass
+class Deps:
+    backend: LocalBackend
+
+backend = LocalBackend(root_dir=".")
+toolset = create_console_toolset()
+agent = Agent("openai:gpt-4o", deps_type=Deps).with_toolset(toolset)
+
+result = agent.run_sync("Create hello.py and run it", deps=Deps(backend=backend))
+```
+
 ## Modules
 
 | Module | Description |
@@ -11,9 +29,16 @@ Complete API documentation for pydantic-ai-backend.
 | [Toolsets](toolsets.md) | Console toolset for pydantic-ai |
 | [Types](types.md) | Type definitions |
 
-## Quick Import Reference
+## Import Reference
 
 ```python
+# Toolset for pydantic-ai agents (requires [console] extra)
+from pydantic_ai_backends import (
+    create_console_toolset,
+    get_console_system_prompt,
+    ConsoleDeps,
+)
+
 # Backends
 from pydantic_ai_backends import (
     LocalBackend,
@@ -21,19 +46,12 @@ from pydantic_ai_backends import (
     CompositeBackend,
 )
 
-# Docker
+# Docker (requires [docker] extra)
 from pydantic_ai_backends import (
     DockerSandbox,
     SessionManager,
     RuntimeConfig,
     BUILTIN_RUNTIMES,
-)
-
-# Toolsets (requires [console] extra)
-from pydantic_ai_backends import (
-    create_console_toolset,
-    get_console_system_prompt,
-    ConsoleDeps,
 )
 
 # Types
