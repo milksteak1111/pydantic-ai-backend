@@ -1,6 +1,6 @@
 [project]
 name = "pydantic-ai-backend"
-version = "0.0.4"
+version = "0.1.0"
 description = "File storage and sandbox backends for AI agents"
 readme = "README.md"
 license = "MIT"
@@ -26,12 +26,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+console = [
+    "pydantic-ai>=0.1.0",
+]
 docker = [
     "docker>=7.0",
     "pypdf>=5.1.0",
     "chardet>=5.2.0",
 ]
 dev = [
+    "pydantic-ai>=0.1.0",
     "pytest>=9.0.0",
     "pytest-asyncio>=0.23.0",
     "pytest-cov>=7.0.0",
@@ -122,6 +126,8 @@ typeCheckingMode = "basic"
 include = ["src/pydantic_ai_backends"]
 exclude = ["**/__pycache__", ".venv*", "tests"]
 reportMissingTypeStubs = false
+reportMissingImports = false
+reportMissingModuleSource = false
 reportUnknownMemberType = false
 reportUnknownArgumentType = false
 reportUnknownVariableType = false

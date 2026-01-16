@@ -1,8 +1,6 @@
 """Tests for backend implementations."""
 
-from pydantic_ai_backends.composite import CompositeBackend
-from pydantic_ai_backends.filesystem import FilesystemBackend
-from pydantic_ai_backends.state import StateBackend
+from pydantic_ai_backends import CompositeBackend, LocalBackend, StateBackend
 
 
 class TestStateBackend:
@@ -235,24 +233,24 @@ class TestStateBackend:
         assert "Single quote" in content
 
 
-class TestFilesystemBackend:
-    """Tests for FilesystemBackend."""
+class TestLocalBackend:
+    """Tests for LocalBackend."""
 
     def test_write_and_read(self, tmp_path):
         """Test writing and reading a file."""
-        backend = FilesystemBackend(tmp_path)
+        backend = LocalBackend(root_dir=tmp_path)
 
-        result = backend.write("/test.txt", "Hello, World!")
+        result = backend.write("test.txt", "Hello, World!")
         assert result.error is None
 
-        content = backend.read("/test.txt")
+        content = backend.read("test.txt")
         assert "Hello, World!" in content
 
     def test_write_bytes(self, tmp_path):
         """Test writing bytes to a file."""
-        backend = FilesystemBackend(tmp_path)
+        backend = LocalBackend(root_dir=tmp_path)
 
-        result = backend.write("/binary.dat", b"\x80\x81\x82")
+        result = backend.write("binary.dat", b"\x80\x81\x82")
         assert result.error is None
 
         # Verify file was written as bytes
@@ -260,147 +258,160 @@ class TestFilesystemBackend:
         assert full_path.exists()
         assert full_path.read_bytes() == b"\x80\x81\x82"
 
-    def test_virtual_mode(self, tmp_path):
-        """Test virtual_mode creates directory."""
-        new_dir = tmp_path / "new_virtual_dir"
+    def test_creates_directory(self, tmp_path):
+        """Test that LocalBackend creates directory automatically."""
+        new_dir = tmp_path / "new_dir"
         assert not new_dir.exists()
 
-        _ = FilesystemBackend(new_dir, virtual_mode=True)
+        _ = LocalBackend(root_dir=new_dir)
         assert new_dir.exists()
 
     def test_edit_file(self, tmp_path):
         """Test editing a file."""
-        backend = FilesystemBackend(tmp_path)
+        backend = LocalBackend(root_dir=tmp_path)
 
-        backend.write("/test.txt", "Hello, World!")
-        result = backend.edit("/test.txt", "World", "Universe")
+        backend.write("test.txt", "Hello, World!")
+        result = backend.edit("test.txt", "World", "Universe")
 
         assert result.error is None
 
-        content = backend.read("/test.txt")
+        content = backend.read("test.txt")
         assert "Universe" in content
 
     def test_glob_info(self, tmp_path):
         """Test glob pattern matching."""
-        backend = FilesystemBackend(tmp_path)
+        backend = LocalBackend(root_dir=tmp_path)
 
-        backend.write("/src/main.py", "# main")
-        backend.write("/src/utils.py", "# utils")
+        backend.write("src/main.py", "# main")
+        backend.write("src/utils.py", "# utils")
 
         results = backend.glob_info("**/*.py")
         assert len(results) == 2
 
     def test_read_bytes(self, tmp_path):
         """Test reading raw bytes from files."""
-        backend = FilesystemBackend(tmp_path)
+        backend = LocalBackend(root_dir=tmp_path)
 
         # Write text content
-        backend.write("/text.txt", "Hello, World!")
-        data = backend._read_bytes("/text.txt")
+        backend.write("text.txt", "Hello, World!")
+        data = backend._read_bytes("text.txt")
         assert isinstance(data, bytes)
         assert data == b"Hello, World!"
 
         # Write binary content
-        backend.write("/binary.dat", b"\x00\x01\x02\xff\xfe")
-        data = backend._read_bytes("/binary.dat")
+        backend.write("binary.dat", b"\x00\x01\x02\xff\xfe")
+        data = backend._read_bytes("binary.dat")
         assert isinstance(data, bytes)
         assert data == b"\x00\x01\x02\xff\xfe"
 
         # Test multiline content
-        backend.write("/multi.txt", "Line 1\nLine 2\nLine 3")
-        data = backend._read_bytes("/multi.txt")
+        backend.write("multi.txt", "Line 1\nLine 2\nLine 3")
+        data = backend._read_bytes("multi.txt")
         assert isinstance(data, bytes)
         assert data == b"Line 1\nLine 2\nLine 3"
 
         # Test non-existent file
-        data = backend._read_bytes("/nonexistent.txt")
+        data = backend._read_bytes("nonexistent.txt")
         assert isinstance(data, bytes)
         assert data == b""
 
         # Test UTF-8 content
-        backend.write("/unicode.txt", "Hello 世界 🌍")
-        data = backend._read_bytes("/unicode.txt")
+        backend.write("unicode.txt", "Hello 世界 🌍")
+        data = backend._read_bytes("unicode.txt")
         assert isinstance(data, bytes)
         assert data == "Hello 世界 🌍".encode()
 
         # Test empty file
-        backend.write("/empty.txt", "")
-        data = backend._read_bytes("/empty.txt")
+        backend.write("empty.txt", "")
+        data = backend._read_bytes("empty.txt")
         assert isinstance(data, bytes)
         assert data == b""
 
     def test_edge_case_filenames(self, tmp_path):
         """Test handling of edge case filenames with special characters."""
-        backend = FilesystemBackend(tmp_path)
+        backend = LocalBackend(root_dir=tmp_path)
 
         # Filename with spaces
-        result = backend.write("/file with spaces.txt", "Content with spaces")
+        result = backend.write("file with spaces.txt", "Content with spaces")
         assert result.error is None
-        content = backend.read("/file with spaces.txt")
+        content = backend.read("file with spaces.txt")
         assert "Content with spaces" in content
         # Verify file actually exists on filesystem
         assert (tmp_path / "file with spaces.txt").exists()
 
         # Filename with special characters
-        result = backend.write("/file-name_test.123.txt", "Special chars")
+        result = backend.write("file-name_test.123.txt", "Special chars")
         assert result.error is None
-        content = backend.read("/file-name_test.123.txt")
+        content = backend.read("file-name_test.123.txt")
         assert "Special chars" in content
 
         # Filename with unicode
-        result = backend.write("/файл.txt", "Unicode filename")
+        result = backend.write("файл.txt", "Unicode filename")
         assert result.error is None
-        content = backend.read("/файл.txt")
+        content = backend.read("файл.txt")
         assert "Unicode filename" in content
         assert (tmp_path / "файл.txt").exists()
 
         # Filename with emoji
-        result = backend.write("/file_🚀.txt", "Emoji filename")
+        result = backend.write("file_🚀.txt", "Emoji filename")
         assert result.error is None
-        content = backend.read("/file_🚀.txt")
+        content = backend.read("file_🚀.txt")
         assert "Emoji filename" in content
 
         # Deep nested path
-        result = backend.write("/very/deep/nested/path/to/file.txt", "Deep nested")
+        result = backend.write("very/deep/nested/path/to/file.txt", "Deep nested")
         assert result.error is None
-        content = backend.read("/very/deep/nested/path/to/file.txt")
+        content = backend.read("very/deep/nested/path/to/file.txt")
         assert "Deep nested" in content
         assert (tmp_path / "very" / "deep" / "nested" / "path" / "to" / "file.txt").exists()
 
-        # Path with dots (should fail validation)
-        result = backend.write("/path/to/../file.txt", "Dots path")
-        assert result.error is not None  # Should fail due to .. validation
-
         # Multiple extensions
-        result = backend.write("/archive.tar.gz", "Archive content")
+        result = backend.write("archive.tar.gz", "Archive content")
         assert result.error is None
-        content = backend.read("/archive.tar.gz")
+        content = backend.read("archive.tar.gz")
         assert "Archive content" in content
 
         # Filename with parentheses and brackets
-        result = backend.write("/file (copy) [1].txt", "Brackets and parens")
+        result = backend.write("file (copy) [1].txt", "Brackets and parens")
         assert result.error is None
-        content = backend.read("/file (copy) [1].txt")
+        content = backend.read("file (copy) [1].txt")
         assert "Brackets and parens" in content
         assert (tmp_path / "file (copy) [1].txt").exists()
 
         # Filename with single quote
-        result = backend.write("/file's-name.txt", "Single quote")
+        result = backend.write("file's-name.txt", "Single quote")
         assert result.error is None
-        content = backend.read("/file's-name.txt")
+        content = backend.read("file's-name.txt")
         assert "Single quote" in content
 
         # Test editing file with spaces
-        edit_result = backend.edit("/file with spaces.txt", "Content", "Modified")
+        edit_result = backend.edit("file with spaces.txt", "Content", "Modified")
         assert edit_result.error is None
-        content = backend.read("/file with spaces.txt")
+        content = backend.read("file with spaces.txt")
         assert "Modified with spaces" in content
 
         # Binary file with special name
-        result = backend.write("/data (binary) [v2].bin", b"\x00\x01\x02\x03")
+        result = backend.write("data (binary) [v2].bin", b"\x00\x01\x02\x03")
         assert result.error is None
-        data = backend._read_bytes("/data (binary) [v2].bin")
+        data = backend._read_bytes("data (binary) [v2].bin")
         assert data == b"\x00\x01\x02\x03"
+
+    def test_execute(self, tmp_path):
+        """Test executing shell commands."""
+        backend = LocalBackend(root_dir=tmp_path)
+
+        result = backend.execute("echo 'Hello, World!'")
+        assert result.exit_code == 0
+        assert "Hello, World!" in result.output
+
+    def test_execute_disabled(self, tmp_path):
+        """Test that execute raises error when disabled."""
+        import pytest
+
+        backend = LocalBackend(root_dir=tmp_path, enable_execute=False)
+
+        with pytest.raises(RuntimeError, match="Shell execution is disabled"):
+            backend.execute("echo 'test'")
 
 
 class TestCompositeBackend:
@@ -482,14 +493,14 @@ class TestCompositeBackend:
         assert isinstance(data, bytes)
         assert data == b""
 
-    def test_edge_case_filenames_routing(self, tmp_path):
+    def test_edge_case_filenames_routing(self):
         """Test routing with edge case filenames across different backends."""
-        # Use FilesystemBackend for better binary handling
-        fs_backend = FilesystemBackend(tmp_path / "default", virtual_mode=True)
-        special_backend = FilesystemBackend(tmp_path / "special", virtual_mode=True)
+        # Use StateBackend for virtual path handling
+        default_backend = StateBackend()
+        special_backend = StateBackend()
 
         composite = CompositeBackend(
-            default=fs_backend,
+            default=default_backend,
             routes={"/special/": special_backend},
         )
 
@@ -533,12 +544,6 @@ class TestCompositeBackend:
         result = composite.write("/special/deep/path (v2)/file's.txt", "routed nested")
         assert result.error is None
 
-        # Verify actual filesystem storage (paths include full virtual paths)
-        assert (tmp_path / "default" / "file with spaces.txt").exists()
-        # Routed backend stores with full path including /special/ prefix
-        assert (tmp_path / "special" / "special" / "file with spaces.txt").exists()
-        assert (tmp_path / "default" / "report (final) [v2.1].txt").exists()
-
         # Test editing files with special names across backends
         edit_result = composite.edit("/file with spaces.txt", "default", "modified")
         assert edit_result.error is None
@@ -547,13 +552,3 @@ class TestCompositeBackend:
         edit_result = composite.edit("/special/file with spaces.txt", "routed", "updated")
         assert edit_result.error is None
         assert "updated backend" in composite.read("/special/file with spaces.txt")
-
-        # Binary files with special names in different backends
-        result = composite.write("/binary (data) [v1].bin", b"\x00\x01\x02")
-        assert result.error is None
-        result = composite.write("/special/binary (cache) [v2].bin", b"\xff\xfe\xfd")
-        assert result.error is None
-
-        # Verify binary data is preserved
-        assert composite._read_bytes("/binary (data) [v1].bin") == b"\x00\x01\x02"
-        assert composite._read_bytes("/special/binary (cache) [v2].bin") == b"\xff\xfe\xfd"

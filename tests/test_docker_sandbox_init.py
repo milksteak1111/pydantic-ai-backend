@@ -6,7 +6,7 @@ class TestDockerSandboxInit:
 
     def test_init_default_values(self):
         """Test default initialization values."""
-        from pydantic_ai_backends.sandbox import DockerSandbox
+        from pydantic_ai_backends import DockerSandbox
 
         sandbox = DockerSandbox.__new__(DockerSandbox)
         # Call __init__ manually to test parameter defaults
@@ -21,7 +21,7 @@ class TestDockerSandboxInit:
 
     def test_init_with_volumes(self):
         """Test initialization with volumes parameter."""
-        from pydantic_ai_backends.sandbox import DockerSandbox
+        from pydantic_ai_backends import DockerSandbox
 
         volumes = {"/host/path": "/container/path"}
         sandbox = DockerSandbox.__new__(DockerSandbox)
@@ -31,7 +31,7 @@ class TestDockerSandboxInit:
 
     def test_init_with_empty_volumes(self):
         """Test initialization with empty volumes dict."""
-        from pydantic_ai_backends.sandbox import DockerSandbox
+        from pydantic_ai_backends import DockerSandbox
 
         sandbox = DockerSandbox.__new__(DockerSandbox)
         sandbox.__init__(volumes={})
@@ -40,7 +40,7 @@ class TestDockerSandboxInit:
 
     def test_init_with_none_volumes(self):
         """Test initialization with None volumes (default)."""
-        from pydantic_ai_backends.sandbox import DockerSandbox
+        from pydantic_ai_backends import DockerSandbox
 
         sandbox = DockerSandbox.__new__(DockerSandbox)
         sandbox.__init__(volumes=None)
@@ -49,7 +49,7 @@ class TestDockerSandboxInit:
 
     def test_init_with_multiple_volumes(self):
         """Test initialization with multiple volume mappings."""
-        from pydantic_ai_backends.sandbox import DockerSandbox
+        from pydantic_ai_backends import DockerSandbox
 
         volumes = {
             "/host/workspace": "/workspace",
@@ -64,7 +64,7 @@ class TestDockerSandboxInit:
 
     def test_init_with_all_parameters(self):
         """Test initialization with all parameters including volumes."""
-        from pydantic_ai_backends.sandbox import DockerSandbox
+        from pydantic_ai_backends import DockerSandbox
 
         volumes = {"/host/path": "/workspace"}
         sandbox = DockerSandbox.__new__(DockerSandbox)
@@ -86,7 +86,7 @@ class TestDockerSandboxInit:
 
     def test_init_with_session_id_alias(self):
         """Test that session_id works as alias for sandbox_id."""
-        from pydantic_ai_backends.sandbox import DockerSandbox
+        from pydantic_ai_backends import DockerSandbox
 
         volumes = {"/host": "/container"}
         sandbox = DockerSandbox.__new__(DockerSandbox)

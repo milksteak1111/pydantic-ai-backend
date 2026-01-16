@@ -2,8 +2,7 @@
 
 import pytest
 
-from pydantic_ai_backends.runtimes import BUILTIN_RUNTIMES, get_runtime
-from pydantic_ai_backends.types import RuntimeConfig
+from pydantic_ai_backends import BUILTIN_RUNTIMES, RuntimeConfig, get_runtime
 
 
 class TestRuntimeConfig:
