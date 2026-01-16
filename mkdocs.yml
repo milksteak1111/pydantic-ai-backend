@@ -1,0 +1,98 @@
+site_name: pydantic-ai-backend
+site_description: File storage and sandbox backends for AI agents
+site_url: https://vstorm-co.github.io/pydantic-ai-backend/
+repo_url: https://github.com/vstorm-co/pydantic-ai-backend
+repo_name: vstorm-co/pydantic-ai-backend
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.copy
+    - content.code.annotate
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            members_order: source
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - admonition
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/vstorm-co/pydantic-ai-backend
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/pydantic-ai-backend/
+
+nav:
+  - pydantic-ai-backend:
+    - index.md
+    - installation.md
+    - getting-help.md
+  - Documentation:
+    - Core Concepts:
+      - concepts/index.md
+      - concepts/backends.md
+      - concepts/docker.md
+      - concepts/console-toolset.md
+  - Examples:
+    - examples/index.md
+    - examples/local-backend.md
+    - examples/docker-sandbox.md
+    - examples/multi-user.md
+    - examples/cli-agent.md
+  - API Reference:
+    - api/index.md
+    - api/backends.md
+    - api/docker.md
+    - api/toolsets.md
+    - api/types.md
+
+extra_css:
+  - stylesheets/extra.css
