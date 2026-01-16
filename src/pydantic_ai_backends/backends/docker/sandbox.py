@@ -12,8 +12,7 @@ import uuid
 from abc import ABC, abstractmethod
 from io import BytesIO
 from pathlib import Path, PurePosixPath
-from types import ModuleType
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any
 
 from pydantic_ai_backends.types import (
     EditResult,
@@ -28,12 +27,12 @@ if TYPE_CHECKING:
     pass
 
 
-def _get_chardet() -> ModuleType:  # pragma: no cover
+def _get_chardet() -> Any:  # pragma: no cover
     """Lazy import for chardet."""
     try:
         import chardet
 
-        return cast(ModuleType, chardet)
+        return chardet
     except ImportError as e:
         raise ImportError(
             "chardet package required for encoding detection. "
@@ -41,12 +40,12 @@ def _get_chardet() -> ModuleType:  # pragma: no cover
         ) from e
 
 
-def _get_pypdf() -> ModuleType:  # pragma: no cover
+def _get_pypdf() -> Any:  # pragma: no cover
     """Lazy import for pypdf."""
     try:
         import pypdf
 
-        return cast(ModuleType, pypdf)
+        return pypdf
     except ImportError as e:
         raise ImportError(
             "pypdf package required for PDF reading. "
