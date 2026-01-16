@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2025-01-16
+
+### Added
+
+- `volumes` parameter to `DockerSandbox` for mounting host directories
+  - Enables persistent storage that survives container restarts
+  - Format: `{"/host/path": "/container/path"}`
+- `workspace_root` parameter to `SessionManager` for automatic per-session storage
+  - Creates `{workspace_root}/{session_id}/workspace` directories automatically
+  - Mounts as volume so files persist across container lifecycle
+- New tests for volumes and workspace_root functionality (140 total tests, 100% coverage)
+- Documentation for persistent storage in README
+
+### Fixed
+
+- Files no longer lost when Docker container stops or application restarts (when volumes configured)
+
 ## [0.0.1] - 2025-12-28
 
 ### Added

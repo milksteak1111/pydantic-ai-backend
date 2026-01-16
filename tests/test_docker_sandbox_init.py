@@ -1,7 +1,5 @@
 """Tests for DockerSandbox initialization (without running Docker)."""
 
-import pytest
-
 
 class TestDockerSandboxInit:
     """Tests for DockerSandbox initialization parameters."""

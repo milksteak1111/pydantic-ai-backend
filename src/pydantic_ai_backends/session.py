@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -60,17 +61,22 @@ class SessionManager:
         self,
         default_runtime: RuntimeConfig | str | None = None,
         default_idle_timeout: int = 3600,
+        workspace_root: str | Path | None = None,
     ):
         """Initialize the session manager.
 
         Args:
             default_runtime: Default RuntimeConfig or name for new sandboxes.
             default_idle_timeout: Default idle timeout in seconds (default: 1 hour).
+            workspace_root: Root directory for persistent session storage.
+                           If set, creates {workspace_root}/{session_id}/workspace
+                           and mounts it as a volume. Files persist across container restarts.
         """
         self._sessions: dict[str, DockerSandbox] = {}
         self._default_runtime = default_runtime
         self._default_idle_timeout = default_idle_timeout
         self._cleanup_task: asyncio.Task[None] | None = None
+        self._workspace_root = Path(workspace_root) if workspace_root else None
 
     @property
     def sessions(self) -> dict[str, DockerSandbox]:
@@ -113,12 +119,20 @@ class SessionManager:
             # Container died, remove from cache
             del self._sessions[session_id]
 
+        # Prepare volumes for persistent storage
+        volumes: dict[str, str] | None = None
+        if self._workspace_root:
+            session_workspace = self._workspace_root / session_id / "workspace"
+            session_workspace.mkdir(parents=True, exist_ok=True)
+            volumes = {str(session_workspace.resolve()): "/workspace"}
+
         # Create new sandbox
         effective_runtime = runtime or self._default_runtime
         sandbox = DockerSandbox(
             runtime=effective_runtime,
             session_id=session_id,
             idle_timeout=self._default_idle_timeout,
+            volumes=volumes,
         )
         sandbox.start()
         self._sessions[session_id] = sandbox

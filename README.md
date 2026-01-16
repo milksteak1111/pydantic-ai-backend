@@ -168,6 +168,47 @@ async def shutdown():
     await manager.shutdown()
 ```
 
+### Persistent Storage with Volumes
+
+By default, files in DockerSandbox are ephemeral - they're lost when the container stops. Use volumes to persist files:
+
+#### Manual Volume Mapping (DockerSandbox)
+
+```python
+from pydantic_ai_backends import DockerSandbox
+
+# Mount a host directory to persist files
+sandbox = DockerSandbox(
+    image="python:3.12-slim",
+    volumes={"/local/workspace": "/workspace"}  # host:container
+)
+
+# Files saved to /workspace in container persist on host
+sandbox.write("/workspace/output.csv", "data...")
+sandbox.stop()  # File remains at /local/workspace/output.csv
+```
+
+#### Automatic Per-Session Storage (SessionManager)
+
+```python
+from pydantic_ai_backends import SessionManager
+
+# Automatically create persistent storage for each session
+manager = SessionManager(
+    workspace_root="/app/sessions",  # Root directory for all sessions
+    default_runtime="python-datascience",
+)
+
+# Creates /app/sessions/{session_id}/workspace automatically
+sandbox = await manager.get_or_create("user-123")
+
+# Files persist even after container stops or app restarts
+sandbox.write("/workspace/results.csv", "analysis results...")
+
+# Later: user returns, same files are available
+sandbox = await manager.get_or_create("user-123")  # Files still there!
+```
+
 ### Composite Backend for Complex Routing
 
 ```python
