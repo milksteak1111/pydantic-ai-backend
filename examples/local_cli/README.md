@@ -1,0 +1,108 @@
+# Local CLI Agent Example
+
+A full-featured CLI coding assistant using `LocalBackend` with `pydantic-ai`.
+
+## Use Case
+
+- Personal CLI coding assistants
+- Development tools
+- Single-user applications
+- Scripts that need AI-powered file operations
+
+## Quick Start
+
+```bash
+# Install dependencies
+pip install pydantic-ai-backend[console]
+
+# Set your API key
+export OPENAI_API_KEY="your-key"
+
+# Run interactive mode
+python cli_agent.py
+
+# Or run a single task
+python cli_agent.py --task "Create a hello.py that prints Hello World"
+```
+
+## Usage
+
+```bash
+# Interactive mode in current directory
+python cli_agent.py
+
+# Specify working directory
+python cli_agent.py --dir /path/to/project
+
+# Use a different model
+python cli_agent.py --model anthropic:claude-3-haiku
+
+# Disable shell execution (safer)
+python cli_agent.py --no-execute
+
+# Restrict file access to working directory only
+python cli_agent.py --restrict
+
+# Run single task
+python cli_agent.py --task "List all Python files and count lines of code"
+```
+
+## Features
+
+The agent can:
+- **Read files** - View file contents with line numbers
+- **Write files** - Create new files or overwrite existing
+- **Edit files** - Make targeted changes to files
+- **Search** - Find files (glob) and search contents (grep)
+- **Execute** - Run shell commands (tests, builds, etc.)
+
+## Example Session
+
+```
+$ python cli_agent.py --dir ~/myproject
+
+CLI Agent ready! Working directory: /Users/me/myproject
+Type 'quit' to exit, 'help' for examples.
+
+You: Show me the project structure
+
+Agent: Let me explore the project structure.
+
+Contents of .:
+  src/
+  tests/
+  README.md
+  pyproject.toml
+
+The project has:
+- `src/` - Source code directory
+- `tests/` - Test files
+- `README.md` - Project documentation
+- `pyproject.toml` - Python project configuration
+
+You: Find all TODO comments
+
+Agent: Searching for TODO comments...
+
+Found 3 matches:
+  src/main.py:45: # TODO: Add error handling
+  src/utils.py:12: # TODO: Optimize this loop
+  tests/test_main.py:8: # TODO: Add more test cases
+
+You: Run the tests
+
+Agent: Running pytest...
+
+===== test session starts =====
+collected 5 items
+tests/test_main.py .....
+===== 5 passed in 0.12s =====
+
+All tests passed!
+```
+
+## Security
+
+- Use `--restrict` to limit file access to working directory
+- Use `--no-execute` to disable shell commands
+- LocalBackend runs with your user permissions

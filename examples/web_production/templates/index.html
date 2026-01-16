@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Sandbox</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: #1e293b;
+            padding: 1rem 2rem;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .session-info {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        .session-info span {
+            color: #22c55e;
+            font-family: monospace;
+        }
+
+        .main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .chat-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #334155;
+        }
+
+        .files-panel {
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            background: #1e293b;
+        }
+
+        .panel-header {
+            padding: 1rem;
+            font-weight: 600;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            max-width: 85%;
+        }
+
+        .message.user {
+            background: #3b82f6;
+            margin-left: auto;
+        }
+
+        .message.assistant {
+            background: #334155;
+        }
+
+        .message pre {
+            background: #0f172a;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            overflow-x: auto;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .message code {
+            font-family: 'Fira Code', monospace;
+        }
+
+        .input-area {
+            padding: 1rem;
+            border-top: 1px solid #334155;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            background: #1e293b;
+            color: #e2e8f0;
+            font-size: 1rem;
+        }
+
+        .input-area input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .input-area button {
+            padding: 0.75rem 1.5rem;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .input-area button:hover {
+            background: #2563eb;
+        }
+
+        .input-area button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+        }
+
+        .files-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem;
+        }
+
+        .file-item {
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.875rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .file-item:hover {
+            background: #334155;
+        }
+
+        .file-item.dir {
+            color: #60a5fa;
+        }
+
+        .file-item .icon {
+            width: 1rem;
+        }
+
+        .refresh-btn {
+            background: transparent;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .refresh-btn:hover {
+            background: #334155;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid #334155;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            color: #64748b;
+            text-align: center;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AI Code Sandbox</h1>
+        <div class="session-info">
+            Session: <span id="session-id">connecting...</span>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="chat-panel">
+            <div class="messages" id="messages">
+                <div class="empty-state">
+                    Start a conversation with the AI assistant.<br>
+                    Try: "Create a hello world script" or "List files"
+                </div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="input" placeholder="Ask the AI to create, edit, or run code..." autofocus>
+                <button id="send-btn" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+
+        <div class="files-panel">
+            <div class="panel-header">
+                Files
+                <button class="refresh-btn" onclick="refreshFiles()">Refresh</button>
+            </div>
+            <div class="files-list" id="files-list">
+                <div class="empty-state">No files yet</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = null;
+
+        async function initSession() {
+            try {
+                const res = await fetch('/sessions', { method: 'POST' });
+                const data = await res.json();
+                sessionId = data.session_id;
+                document.getElementById('session-id').textContent = sessionId.slice(0, 8);
+                refreshFiles();
+            } catch (e) {
+                document.getElementById('session-id').textContent = 'error';
+                console.error('Failed to create session:', e);
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('input');
+            const message = input.value.trim();
+            if (!message || !sessionId) return;
+
+            input.value = '';
+            addMessage(message, 'user');
+
+            const btn = document.getElementById('send-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading"></span>';
+
+            try {
+                const res = await fetch(`/sessions/${sessionId}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                const data = await res.json();
+                addMessage(data.response, 'assistant');
+                refreshFiles();
+            } catch (e) {
+                addMessage('Error: Failed to get response', 'assistant');
+                console.error(e);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Send';
+            }
+        }
+
+        function addMessage(text, role) {
+            const messages = document.getElementById('messages');
+
+            // Remove empty state if present
+            const emptyState = messages.querySelector('.empty-state');
+            if (emptyState) emptyState.remove();
+
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+
+            // Simple markdown-like formatting for code blocks
+            let html = escapeHtml(text);
+            html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+            html = html.replace(/\n/g, '<br>');
+
+            div.innerHTML = html;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function refreshFiles() {
+            if (!sessionId) return;
+
+            try {
+                const res = await fetch(`/sessions/${sessionId}/files`);
+                const data = await res.json();
+                renderFiles(data.files);
+            } catch (e) {
+                console.error('Failed to load files:', e);
+            }
+        }
+
+        function renderFiles(files) {
+            const list = document.getElementById('files-list');
+
+            if (!files || files.length === 0) {
+                list.innerHTML = '<div class="empty-state">No files yet</div>';
+                return;
+            }
+
+            list.innerHTML = files.map(f => `
+                <div class="file-item ${f.is_dir ? 'dir' : ''}" onclick="viewFile('${f.name}')">
+                    <span class="icon">${f.is_dir ? '📁' : '📄'}</span>
+                    ${f.name}
+                </div>
+            `).join('');
+        }
+
+        async function viewFile(name) {
+            if (!sessionId) return;
+
+            try {
+                const res = await fetch(`/sessions/${sessionId}/files/${name}`);
+                const data = await res.json();
+                addMessage(`📄 **${name}**\n\`\`\`\n${data.content}\n\`\`\``, 'assistant');
+            } catch (e) {
+                console.error('Failed to read file:', e);
+            }
+        }
+
+        // Enter to send
+        document.getElementById('input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Initialize
+        initSession();
+    </script>
+</body>
+</html>

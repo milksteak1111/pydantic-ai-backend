@@ -23,14 +23,6 @@ class TestLazyLoading:
         assert BaseSandbox is not None
         assert BaseSandbox.__name__ == "BaseSandbox"
 
-    def test_lazy_import_local_sandbox(self):
-        """Test lazy import of LocalSandbox."""
-        import pydantic_ai_backends
-
-        LocalSandbox = pydantic_ai_backends.LocalSandbox
-        assert LocalSandbox is not None
-        assert LocalSandbox.__name__ == "LocalSandbox"
-
     def test_lazy_import_session_manager(self):
         """Test lazy import of SessionManager."""
         import pydantic_ai_backends

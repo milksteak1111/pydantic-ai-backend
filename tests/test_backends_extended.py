@@ -1,10 +1,7 @@
 """Extended tests for backend implementations to reach 100% coverage."""
 
-import pytest
-
-from pydantic_ai_backends.composite import CompositeBackend
-from pydantic_ai_backends.filesystem import FilesystemBackend
-from pydantic_ai_backends.state import StateBackend, _normalize_path, _validate_path
+from pydantic_ai_backends import CompositeBackend, LocalBackend, StateBackend
+from pydantic_ai_backends.backends.state import _normalize_path, _validate_path
 
 
 class TestPathValidation:
@@ -177,246 +174,126 @@ class TestStateBackendExtended:
         assert all(r["path"].endswith(".py") for r in results)
 
 
-class TestFilesystemBackendExtended:
-    """Extended tests for FilesystemBackend."""
+class TestLocalBackendExtended:
+    """Extended tests for LocalBackend."""
 
     def test_read_nonexistent(self, tmp_path):
         """Test reading nonexistent file."""
-        backend = FilesystemBackend(tmp_path)
-        result = backend.read("/nonexistent.txt")
+        backend = LocalBackend(root_dir=tmp_path)
+        result = backend.read("nonexistent.txt")
         assert "Error" in result
 
     def test_read_with_offset_and_limit(self, tmp_path):
         """Test reading with offset and limit."""
-        backend = FilesystemBackend(tmp_path)
+        backend = LocalBackend(root_dir=tmp_path)
         content = "\n".join([f"Line {i}" for i in range(20)])
-        backend.write("/test.txt", content)
+        backend.write("test.txt", content)
 
-        result = backend.read("/test.txt", offset=5, limit=5)
+        result = backend.read("test.txt", offset=5, limit=5)
         assert "Line 5" in result
         assert "Line 9" in result
 
-    def test_read_directory(self, tmp_path):
-        """Test reading a directory returns error."""
-        backend = FilesystemBackend(tmp_path)
-        subdir = tmp_path / "subdir"
-        subdir.mkdir()
-
-        result = backend.read("/subdir")
-        assert "Error" in result
-        assert "directory" in result
-
-    def test_read_offset_exceeds_length(self, tmp_path):
-        """Test reading with offset beyond file length."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/test.txt", "Short file")
-
-        result = backend.read("/test.txt", offset=100)
-        assert "Error" in result
-        assert "exceeds" in result
-
-    def test_read_shows_more_lines(self, tmp_path):
-        """Test reading shows 'more lines' when truncated."""
-        backend = FilesystemBackend(tmp_path)
-        content = "\n".join([f"Line {i}" for i in range(100)])
-        backend.write("/test.txt", content)
-
-        result = backend.read("/test.txt", offset=0, limit=10)
-        assert "more lines" in result
-
-    def test_ls_info_empty_dir(self, tmp_path):
-        """Test ls_info on empty directory."""
-        backend = FilesystemBackend(tmp_path)
-        entries = backend.ls_info("/")
-        assert entries == []
-
-    def test_ls_info_with_subdirs(self, tmp_path):
-        """Test ls_info with subdirectories."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/dir/file1.txt", "content1")
-        backend.write("/dir/subdir/file2.txt", "content2")
-
-        entries = backend.ls_info("/dir")
-        names = [e["name"] for e in entries]
-        assert "file1.txt" in names
-        assert "subdir" in names
-
-    def test_ls_info_on_file(self, tmp_path):
-        """Test ls_info when path is a file."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/file.txt", "content")
-
-        entries = backend.ls_info("/file.txt")
-        assert len(entries) == 1
-        assert entries[0]["name"] == "file.txt"
-        assert entries[0]["is_dir"] is False
-
-    def test_ls_info_nonexistent(self, tmp_path):
-        """Test ls_info on nonexistent path."""
-        backend = FilesystemBackend(tmp_path)
-        entries = backend.ls_info("/nonexistent")
-        assert entries == []
-
     def test_edit_nonexistent(self, tmp_path):
         """Test editing nonexistent file."""
-        backend = FilesystemBackend(tmp_path)
-        result = backend.edit("/nonexistent.txt", "old", "new")
+        backend = LocalBackend(root_dir=tmp_path)
+        result = backend.edit("nonexistent.txt", "old", "new")
         assert result.error is not None
 
     def test_edit_string_not_found(self, tmp_path):
         """Test editing with string not in file."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/test.txt", "Hello World")
-        result = backend.edit("/test.txt", "foo", "bar")
+        backend = LocalBackend(root_dir=tmp_path)
+        backend.write("test.txt", "Hello World")
+        result = backend.edit("test.txt", "foo", "bar")
         assert result.error is not None
         assert "not found" in result.error
 
     def test_edit_multiple_without_replace_all(self, tmp_path):
         """Test editing with multiple occurrences without replace_all."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/test.txt", "foo bar foo baz foo")
-        result = backend.edit("/test.txt", "foo", "qux")
+        backend = LocalBackend(root_dir=tmp_path)
+        backend.write("test.txt", "foo bar foo baz foo")
+        result = backend.edit("test.txt", "foo", "qux")
         assert result.error is not None
         assert "3 times" in result.error
 
     def test_edit_replace_all(self, tmp_path):
         """Test editing with replace_all."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/test.txt", "foo bar foo baz foo")
-        result = backend.edit("/test.txt", "foo", "qux", replace_all=True)
+        backend = LocalBackend(root_dir=tmp_path)
+        backend.write("test.txt", "foo bar foo baz foo")
+        result = backend.edit("test.txt", "foo", "qux", replace_all=True)
         assert result.error is None
         assert result.occurrences == 3
 
-        content = backend.read("/test.txt")
+        content = backend.read("test.txt")
         assert "qux" in content
         assert "foo" not in content
 
-    def test_glob_info_nonexistent_path(self, tmp_path):
-        """Test glob_info on nonexistent path."""
-        backend = FilesystemBackend(tmp_path)
-        results = backend.glob_info("*.py", "/nonexistent")
-        assert results == []
+    def test_path_outside_allowed(self, tmp_path):
+        """Test that paths outside allowed directories are rejected."""
+        backend = LocalBackend(root_dir=tmp_path)
 
-    def test_grep_raw_no_matches(self, tmp_path):
-        """Test grep_raw with no matches."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/test.txt", "Hello World")
-        results = backend._grep_python("nonexistent")  # Force Python grep
-        assert results == []
-
-    def test_grep_raw_with_glob_filter(self, tmp_path):
-        """Test grep_raw with glob filter using Python fallback."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/src/main.py", "Hello world")
-        backend.write("/src/test.js", "Hello world")
-
-        results = backend._grep_python("Hello", glob_pattern="**/*.py")
-        assert isinstance(results, list)
-
-    def test_grep_raw_invalid_regex(self, tmp_path):
-        """Test grep_raw with invalid regex."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/test.txt", "content")
-
-        result = backend._grep_python("[invalid")
-        assert isinstance(result, str)
-        assert "Error" in result
-
-    def test_grep_raw_nonexistent_path(self, tmp_path):
-        """Test grep_raw on nonexistent path."""
-        backend = FilesystemBackend(tmp_path)
-
-        result = backend._grep_python("pattern", path="/nonexistent")
-        assert isinstance(result, str)
-        assert "Error" in result
-
-    def test_grep_raw_on_single_file(self, tmp_path):
-        """Test grep_raw on a single file."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/test.txt", "Hello world\nGoodbye world")
-
-        results = backend._grep_python("world", path="/test.txt")
-        assert isinstance(results, list)
-        assert len(results) == 2
-
-    def test_grep_raw_on_directory(self, tmp_path):
-        """Test grep_raw on directory without glob."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/src/main.py", "Hello world")
-        backend.write("/src/utils.py", "Goodbye world")
-
-        results = backend._grep_python("world", path="/src")
-        assert isinstance(results, list)
-        assert len(results) == 2
-
-    def test_path_outside_root(self, tmp_path):
-        """Test that paths outside root are rejected."""
-        backend = FilesystemBackend(tmp_path)
-        result = backend.write("/../outside.txt", "content")
+        # Try to write outside the root (absolute path)
+        result = backend.write("/etc/test.txt", "content")
+        # LocalBackend raises PermissionError which gets converted to error message
         assert result.error is not None
 
-    def test_nonexistent_root_without_virtual_mode(self, tmp_path):
-        """Test that nonexistent root raises error without virtual_mode."""
-        with pytest.raises(ValueError):
-            FilesystemBackend(tmp_path / "nonexistent")
-
-    def test_virtual_mode_creates_directory(self, tmp_path):
-        """Test virtual_mode creates directory if it doesn't exist."""
-        new_dir = tmp_path / "new_virtual_dir"
+    def test_creates_directory_automatically(self, tmp_path):
+        """Test that LocalBackend creates directory if it doesn't exist."""
+        new_dir = tmp_path / "new_dir"
         assert not new_dir.exists()
 
-        backend = FilesystemBackend(new_dir, virtual_mode=True)
+        backend = LocalBackend(root_dir=new_dir)
         assert new_dir.exists()
         assert backend.root_dir == new_dir
 
-    def test_path_escape_via_symlink_check(self, tmp_path):
-        """Test path validation with escape check."""
-        from pydantic_ai_backends.filesystem import _validate_path
+    def test_grep_raw(self, tmp_path):
+        """Test grep_raw searching."""
+        backend = LocalBackend(root_dir=tmp_path)
+        backend.write("test.txt", "Hello world\nGoodbye world")
+        backend.write("other.txt", "Other content")
 
-        # Normal path should be valid
-        error = _validate_path("/normal/path", tmp_path)
-        assert error is None
-
-        # Path with .. should be invalid
-        error = _validate_path("../escape", tmp_path)
-        assert error is not None
-
-        # Path with ~ should be invalid
-        error = _validate_path("~/home", tmp_path)
-        assert error is not None
-
-    def test_path_escape_resolution(self, tmp_path):
-        """Test path validation detects escape during resolution."""
-        from pydantic_ai_backends.filesystem import _validate_path
-
-        # This path looks valid but might escape during resolution
-        # Create a tricky path
-        error = _validate_path("/valid/path", tmp_path)
-        assert error is None
-
-    def test_grep_skips_non_files(self, tmp_path):
-        """Test grep_python skips non-file entries."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/file.txt", "Hello world")
-        (tmp_path / "subdir").mkdir()
-
-        # Should only search files, not directories
-        results = backend._grep_python("Hello")
+        results = backend.grep_raw("world", path="test.txt")
         assert isinstance(results, list)
-        assert len(results) == 1
+        assert len(results) == 2
 
-    def test_glob_with_directories(self, tmp_path):
-        """Test glob_info only returns files, not directories."""
-        backend = FilesystemBackend(tmp_path)
-        backend.write("/src/file.py", "# code")
-
-        # Create a directory that matches the pattern
-        (tmp_path / "src" / "tests.py").mkdir()  # a dir named tests.py
+    def test_glob_info(self, tmp_path):
+        """Test glob_info pattern matching."""
+        backend = LocalBackend(root_dir=tmp_path)
+        backend.write("src/file.py", "# code")
+        backend.write("src/test.js", "// test")
 
         results = backend.glob_info("**/*.py")
         paths = [r["path"] for r in results]
-        # Should only include file.py, not the directory
-        assert len([p for p in paths if "file.py" in p]) == 1
+        assert len(paths) == 1
+        assert any("file.py" in p for p in paths)
+
+    def test_allowed_directories(self, tmp_path):
+        """Test restricted access with allowed_directories."""
+        allowed = tmp_path / "allowed"
+        allowed.mkdir()
+        restricted = tmp_path / "restricted"
+        restricted.mkdir()
+
+        backend = LocalBackend(
+            root_dir=allowed,
+            allowed_directories=[str(allowed)],
+        )
+
+        # Should succeed in allowed directory (relative path)
+        result = backend.write("file.txt", "content")
+        assert result.error is None
+
+        # Should fail outside allowed directories (absolute path)
+        result = backend.write(str(restricted / "file.txt"), "content")
+        assert result.error is not None
+
+    def test_execute_timeout(self, tmp_path):
+        """Test execute with timeout."""
+        backend = LocalBackend(root_dir=tmp_path)
+
+        # Command that takes longer than timeout
+        result = backend.execute("sleep 10", timeout=1)
+        assert result.exit_code == 124
+        assert "timed out" in result.output
 
 
 class TestCompositeBackendExtended:

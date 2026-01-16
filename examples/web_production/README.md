@@ -1,0 +1,92 @@
+# Web Production Example
+
+Multi-user web service with isolated Docker sandboxes, AI agent, and web UI.
+
+## Features
+
+- **Web UI** - Chat interface at http://localhost:8000
+- **User Isolation** - Each user gets their own Docker container
+- **AI Agent** - Chat with AI that can create, edit, run code
+- **File Browser** - View files created by the AI
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Web UI (templates/)                      │
+├─────────────────────────────────────────────────────────────┤
+│                      FastAPI Server                         │
+├─────────────────────────────────────────────────────────────┤
+│                    SessionManager                           │
+├───────────────┬───────────────┬───────────────┬────────────┤
+│ DockerSandbox │ DockerSandbox │ DockerSandbox │    ...     │
+│   (User A)    │   (User B)    │   (User C)    │            │
+└───────────────┴───────────────┴───────────────┴────────────┘
+```
+
+## Quick Start
+
+```bash
+# Install dependencies
+pip install pydantic-ai-backend[docker] fastapi uvicorn pydantic-ai jinja2
+
+# Set API key
+export OPENAI_API_KEY="your-key"
+
+# Start server
+python server.py
+```
+
+Open http://localhost:8000 in your browser.
+
+## Screenshots
+
+The UI provides:
+- Chat panel (left) - Talk to the AI assistant
+- File browser (right) - See files in your sandbox
+
+Try asking:
+- "Create a hello.py that prints Hello World"
+- "Run hello.py"
+- "Create a fibonacci function and test it"
+
+## API Endpoints
+
+The server also exposes a REST API:
+
+```bash
+# Create session
+curl -X POST "http://localhost:8000/sessions"
+
+# Chat with AI
+curl -X POST "http://localhost:8000/sessions/{id}/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Create a script"}'
+
+# List files
+curl "http://localhost:8000/sessions/{id}/files"
+
+# Read file
+curl "http://localhost:8000/sessions/{id}/files/hello.py"
+
+# Execute command
+curl -X POST "http://localhost:8000/sessions/{id}/execute" \
+  -H "Content-Type: application/json" \
+  -d '{"command": "python hello.py"}'
+```
+
+## Project Structure
+
+```
+web_production/
+├── server.py           # FastAPI server with AI agent
+├── templates/
+│   └── index.html      # Web UI
+└── README.md
+```
+
+## Security Notes
+
+- Each browser session gets isolated Docker container
+- Users cannot access other users' files
+- Containers auto-cleanup on session end

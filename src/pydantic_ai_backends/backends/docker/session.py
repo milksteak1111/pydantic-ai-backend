@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from pydantic_ai_backends.sandbox import DockerSandbox
+    from pydantic_ai_backends.backends.docker.sandbox import DockerSandbox
     from pydantic_ai_backends.types import RuntimeConfig
 
 
@@ -108,7 +108,7 @@ class SessionManager:
         Raises:
             ValueError: If no runtime specified and no default runtime set.
         """
-        from pydantic_ai_backends.sandbox import DockerSandbox
+        from pydantic_ai_backends.backends.docker.sandbox import DockerSandbox
 
         # Check for existing session
         if session_id in self._sessions:

@@ -12,8 +12,7 @@ import uuid
 from abc import ABC, abstractmethod
 from io import BytesIO
 from pathlib import Path, PurePosixPath
-from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic_ai_backends.types import (
     EditResult,
@@ -28,7 +27,7 @@ if TYPE_CHECKING:
     pass
 
 
-def _get_chardet() -> ModuleType:  # pragma: no cover
+def _get_chardet() -> Any:  # pragma: no cover
     """Lazy import for chardet."""
     try:
         import chardet
@@ -41,7 +40,7 @@ def _get_chardet() -> ModuleType:  # pragma: no cover
         ) from e
 
 
-def _get_pypdf() -> ModuleType:  # pragma: no cover
+def _get_pypdf() -> Any:  # pragma: no cover
     """Lazy import for pypdf."""
     try:
         import pypdf
@@ -342,7 +341,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         # Handle runtime configuration
         if runtime is not None:
             if isinstance(runtime, str):
-                from pydantic_ai_backends.runtimes import get_runtime
+                from pydantic_ai_backends.backends.docker.runtimes import get_runtime
 
                 runtime = get_runtime(runtime)
             self._runtime: RuntimeConfig | None = runtime
@@ -837,69 +836,3 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
     def __del__(self) -> None:
         """Cleanup container on deletion."""
         self.stop()
-
-
-class LocalSandbox(BaseSandbox):  # pragma: no cover
-    """Local sandbox using subprocess (no isolation).
-
-    WARNING: This sandbox executes commands directly on the host system
-    without isolation. Use DockerSandbox for production workloads.
-    """
-
-    def __init__(
-        self,
-        work_dir: str = "/tmp/pydantic-ai-backend-sandbox",
-        sandbox_id: str | None = None,
-    ):
-        """Initialize local sandbox.
-
-        Args:
-            work_dir: Working directory for commands.
-            sandbox_id: Unique identifier for this sandbox.
-        """
-        super().__init__(sandbox_id)
-        self._work_dir = work_dir
-
-        # Create work directory
-        import os
-
-        os.makedirs(work_dir, exist_ok=True)
-
-    def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
-        """Execute command using subprocess."""
-        import subprocess
-
-        try:
-            result = subprocess.run(
-                ["sh", "-c", command],
-                cwd=self._work_dir,
-                capture_output=True,
-                text=True,
-                timeout=timeout or 120,
-            )
-
-            output = result.stdout + result.stderr
-
-            # Truncate if too long
-            max_output = 100000
-            truncated = len(output) > max_output
-            if truncated:
-                output = output[:max_output]
-
-            return ExecuteResponse(
-                output=output,
-                exit_code=result.returncode,
-                truncated=truncated,
-            )
-        except subprocess.TimeoutExpired:
-            return ExecuteResponse(
-                output="Error: Command timed out",
-                exit_code=124,
-                truncated=False,
-            )
-        except Exception as e:
-            return ExecuteResponse(
-                output=f"Error: {e}",
-                exit_code=1,
-                truncated=False,
-            )

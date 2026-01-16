@@ -1,236 +1,320 @@
 # pydantic-ai-backend
 
-> **Looking for a complete agent framework?** Check out [pydantic-deep](https://github.com/vstorm-co/pydantic-deepagents) - a full-featured deep agent framework with planning, subagents, and skills system built on pydantic-ai.
-
-> **Need task planning?** Check out [pydantic-ai-todo](https://github.com/vstorm-co/pydantic-ai-todo) - standalone task planning toolset that works with any pydantic-ai agent.
-
-> **Want a full-stack template?** Check out [fastapi-fullstack](https://github.com/vstorm-co/full-stack-fastapi-nextjs-llm-template) - production-ready AI/LLM application template with FastAPI, Next.js, and pydantic-deep integration.
-
 [![PyPI version](https://img.shields.io/pypi/v/pydantic-ai-backend.svg)](https://pypi.org/project/pydantic-ai-backend/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen.svg)](https://github.com/vstorm-co/pydantic-ai-backend)
+[![Coverage Status](https://coveralls.io/repos/github/vstorm-co/pydantic-ai-backend/badge.svg?branch=main)](https://coveralls.io/github/vstorm-co/pydantic-ai-backend?branch=main)
 
-File storage and sandbox backends for AI agents. Works seamlessly with [pydantic-ai](https://github.com/pydantic/pydantic-ai).
+File storage, sandbox backends, and console toolset for [pydantic-ai](https://github.com/pydantic/pydantic-ai) agents.
 
-**This library was extracted from [pydantic-deep](https://github.com/vstorm-co/pydantic-deepagents)** to provide standalone, reusable backends for any pydantic-ai agent without requiring the full framework.
+> **Looking for a complete agent framework?** Check out [pydantic-deep](https://github.com/vstorm-co/pydantic-deepagents) - a full-featured deep agent framework with planning, subagents, and skills system.
 
-## Features
+> **Need task planning?** Check out [pydantic-ai-todo](https://github.com/vstorm-co/pydantic-ai-todo) - standalone task planning toolset for any pydantic-ai agent.
 
-- **BackendProtocol** - Unified interface for file operations (read, write, edit, glob, grep)
-- **StateBackend** - In-memory storage (perfect for testing and ephemeral sessions)
-- **FilesystemBackend** - Real filesystem with path sandboxing for security
-- **CompositeBackend** - Route operations to different backends by path prefix
-- **DockerSandbox** - Isolated Docker containers with command execution
-- **SessionManager** - Multi-user session management for Docker sandboxes
-- **RuntimeConfig** - Pre-configured Docker environments with packages
+## Documentation
+
+**[Full Documentation](https://vstorm-co.github.io/pydantic-ai-backend/)** - Installation, concepts, examples, and API reference.
+
+## Architecture
+
+```
+                                    ┌─────────────────────────────────────┐
+                                    │           pydantic-ai Agent         │
+                                    │  ┌───────────────────────────────┐  │
+                                    │  │      Console Toolset          │  │
+                                    │  │  ls, read, write, edit, grep  │  │
+                                    │  │        glob, execute          │  │
+                                    │  └───────────────┬───────────────┘  │
+                                    └──────────────────┼──────────────────┘
+                                                       │
+                                                       ▼
+                              ┌─────────────────────────────────────────────────┐
+                              │              BackendProtocol                    │
+                              │   ls_info, read, write, edit, glob_info, grep   │
+                              └─────────────────────────────────────────────────┘
+                                                       │
+                       ┌───────────────────────────────┼───────────────────────────────┐
+                       │                               │                               │
+                       ▼                               ▼                               ▼
+         ┌─────────────────────────┐     ┌─────────────────────────┐     ┌─────────────────────────┐
+         │      LocalBackend       │     │      StateBackend       │     │     DockerSandbox       │
+         │                         │     │                         │     │                         │
+         │  ┌───────────────────┐  │     │  ┌───────────────────┐  │     │  ┌───────────────────┐  │
+         │  │   Local Files     │  │     │  │   In-Memory       │  │     │  │ Docker Container  │  │
+         │  │   + Shell         │  │     │  │   Dictionary      │  │     │  │ + Isolated Shell  │  │
+         │  └───────────────────┘  │     │  └───────────────────┘  │     │  └───────────────────┘  │
+         │                         │     │                         │     │                         │
+         │  - CLI tools            │     │  - Testing              │     │  - Safe execution       │
+         │  - Dev environments     │     │  - Ephemeral sessions   │     │  - Multi-user apps      │
+         │  - Trusted contexts     │     │  - Stateless APIs       │     │  - Untrusted code       │
+         └─────────────────────────┘     └─────────────────────────┘     └─────────────────────────┘
+                                                                                    │
+                                                                                    ▼
+                                                                         ┌─────────────────────────┐
+                                                                         │    SessionManager       │
+                                                                         │                         │
+                                                                         │  - Per-user sandboxes   │
+                                                                         │  - Idle cleanup         │
+                                                                         │  - Persistent storage   │
+                                                                         └─────────────────────────┘
+
+
+         ┌──────────────────────────────────────────────────────────────────────────────────────────┐
+         │                              CompositeBackend                                            │
+         │                                                                                          │
+         │    Route by path prefix:                                                                 │
+         │    /project/*  ──►  LocalBackend(/home/user/project)                                     │
+         │    /data/*     ──►  LocalBackend(/shared/data, read-only)                                │
+         │    /temp/*     ──►  StateBackend (in-memory)                                             │
+         │    /*          ──►  default backend                                                      │
+         └──────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Installation
 
 ```bash
+# Core library
 pip install pydantic-ai-backend
-```
 
-With Docker sandbox support:
+# With console toolset (requires pydantic-ai)
+pip install pydantic-ai-backend[console]
 
-```bash
+# With Docker sandbox support
 pip install pydantic-ai-backend[docker]
+
+# Everything
+pip install pydantic-ai-backend[console,docker]
 ```
 
-## Usage with pydantic-ai
+## Quick Start
 
-### Basic File Operations Tool
+### Console Toolset with pydantic-ai
+
+The easiest way to add file operations to your agent:
 
 ```python
+from dataclasses import dataclass
 from pydantic_ai import Agent
-from pydantic_ai_backends import StateBackend
+from pydantic_ai_backends import LocalBackend, create_console_toolset
 
-# Create a backend for file storage
-backend = StateBackend()
+@dataclass
+class Deps:
+    backend: LocalBackend
 
-# Define your agent with file operation tools
-agent = Agent("openai:gpt-4o")
+# Create agent with console tools
+agent = Agent(
+    "openai:gpt-4o",
+    deps_type=Deps,
+    toolsets=[create_console_toolset()],
+    system_prompt="You are a coding assistant. Use the tools to read, write, and execute code.",
+)
 
-@agent.tool
-def read_file(ctx, path: str) -> str:
-    """Read a file and return its contents."""
-    return backend.read(path)
-
-@agent.tool
-def write_file(ctx, path: str, content: str) -> str:
-    """Write content to a file."""
-    result = backend.write(path, content)
-    if result.error:
-        return f"Error: {result.error}"
-    return f"File written to {result.path}"
-
-@agent.tool
-def search_files(ctx, pattern: str) -> str:
-    """Search for files matching a glob pattern."""
-    files = backend.glob_info(pattern)
-    return "\n".join(f["path"] for f in files)
-
-# Pre-populate some files
-backend.write("/src/app.py", "def main():\n    print('Hello')")
-backend.write("/src/utils.py", "def helper(): pass")
-
-# Run the agent
-result = agent.run_sync("List all Python files and read app.py")
+# Run agent
+backend = LocalBackend(root_dir="./workspace")
+result = agent.run_sync(
+    "Create a Python script that calculates fibonacci numbers and run it",
+    deps=Deps(backend=backend),
+)
 print(result.output)
 ```
 
-### Docker Sandbox for Code Execution
+### Docker Sandbox for Safe Execution
+
+For untrusted code or multi-user applications:
 
 ```python
+from dataclasses import dataclass
 from pydantic_ai import Agent
-from pydantic_ai_backends import DockerSandbox
+from pydantic_ai_backends import DockerSandbox, create_console_toolset
 
-agent = Agent("openai:gpt-4o")
+@dataclass
+class Deps:
+    backend: DockerSandbox
 
-# Create sandbox (starts Docker container)
-sandbox = DockerSandbox(image="python:3.12-slim")
+# Create isolated sandbox
+sandbox = DockerSandbox(runtime="python-datascience")
+sandbox.start()
 
-@agent.tool
-def execute_python(ctx, code: str) -> str:
-    """Execute Python code in a sandboxed environment."""
-    # Write code to file
-    sandbox.write("/workspace/script.py", code)
-    # Execute and return output
-    result = sandbox.execute("python /workspace/script.py", timeout=30)
-    if result.exit_code != 0:
-        return f"Error (exit {result.exit_code}): {result.output}"
-    return result.output
-
-try:
-    result = agent.run_sync("Calculate the first 10 Fibonacci numbers")
-    print(result.output)
-finally:
-    sandbox.stop()
-```
-
-### Pre-configured Runtime Environments
-
-```python
-from pydantic_ai import Agent
-from pydantic_ai_backends import DockerSandbox, RuntimeConfig
-
-# Custom runtime with data science packages
-runtime = RuntimeConfig(
-    name="datascience",
-    base_image="python:3.12-slim",
-    packages=["pandas", "numpy", "matplotlib", "scikit-learn"],
+# Create agent
+agent = Agent(
+    "openai:gpt-4o",
+    deps_type=Deps,
+    toolsets=[create_console_toolset()],
+    system_prompt="You are a data analysis assistant.",
 )
 
-sandbox = DockerSandbox(runtime=runtime)
+result = agent.run_sync(
+    "Write a script that generates random data and plots a histogram",
+    deps=Deps(backend=sandbox),
+)
 
-# Or use a built-in runtime
-sandbox = DockerSandbox(runtime="python-datascience")
-
-# Available built-in runtimes:
-# - python-minimal: Clean Python 3.12
-# - python-datascience: pandas, numpy, matplotlib, scikit-learn, seaborn
-# - python-web: FastAPI, SQLAlchemy, httpx
-# - node-minimal: Clean Node.js 20
-# - node-react: TypeScript, Vite, React
+sandbox.stop()
 ```
 
-### Multi-User Sessions with Session Manager
+### In-Memory Backend for Testing
+
+Perfect for unit tests and ephemeral sessions:
 
 ```python
+from dataclasses import dataclass
 from pydantic_ai import Agent
-from pydantic_ai_backends import SessionManager
+from pydantic_ai_backends import StateBackend, create_console_toolset
 
-# Create session manager for multi-user scenarios
+@dataclass
+class Deps:
+    backend: StateBackend
+
+# In-memory storage - no files on disk
+backend = StateBackend()
+
+agent = Agent(
+    "openai:gpt-4o",
+    deps_type=Deps,
+    toolsets=[create_console_toolset(include_execute=False)],  # No shell in StateBackend
+)
+
+result = agent.run_sync(
+    "Create a config.json file with database settings",
+    deps=Deps(backend=backend),
+)
+
+# Access files programmatically
+print(backend.files)  # {'/config.json': {...}}
+```
+
+### Multi-User Web Application
+
+Session manager for web apps with isolated user environments:
+
+```python
+from dataclasses import dataclass
+from fastapi import FastAPI
+from pydantic_ai import Agent
+from pydantic_ai_backends import SessionManager, DockerSandbox, create_console_toolset
+
+app = FastAPI()
+
+# Session manager with persistent storage
 manager = SessionManager(
     default_runtime="python-datascience",
-    default_idle_timeout=3600,  # 1 hour
+    workspace_root="/app/user_workspaces",  # Files persist here
 )
 
-async def handle_user_request(user_id: str, code: str):
-    # Get or create sandbox for this user
+@dataclass
+class Deps:
+    backend: DockerSandbox
+
+agent = Agent(
+    "openai:gpt-4o",
+    deps_type=Deps,
+    toolsets=[create_console_toolset()],
+)
+
+@app.post("/run/{user_id}")
+async def run_code(user_id: str, prompt: str):
+    # Each user gets their own isolated sandbox
     sandbox = await manager.get_or_create(user_id)
 
-    # Execute user's code
-    sandbox.write("/workspace/script.py", code)
-    result = sandbox.execute("python /workspace/script.py")
+    result = await agent.run(prompt, deps=Deps(backend=sandbox))
+    return {"output": result.output}
 
-    return result.output
-
-# Cleanup idle sessions periodically
-async def cleanup_task():
-    while True:
-        await asyncio.sleep(300)  # Every 5 minutes
-        cleaned = await manager.cleanup_idle()
-        print(f"Cleaned up {cleaned} idle sessions")
-
-# Shutdown all sessions on app exit
+@app.on_event("shutdown")
 async def shutdown():
     await manager.shutdown()
 ```
 
-### Persistent Storage with Volumes
+### Composite Backend for Complex Routing
 
-By default, files in DockerSandbox are ephemeral - they're lost when the container stops. Use volumes to persist files:
+Route different paths to different backends:
 
-#### Manual Volume Mapping (DockerSandbox)
+```python
+from dataclasses import dataclass
+from pydantic_ai import Agent
+from pydantic_ai_backends import (
+    CompositeBackend,
+    LocalBackend,
+    StateBackend,
+    create_console_toolset,
+)
+
+@dataclass
+class Deps:
+    backend: CompositeBackend
+
+# Different backends for different purposes
+backend = CompositeBackend(
+    default=StateBackend(),  # Temp files in memory
+    routes={
+        "/project/": LocalBackend("/home/user/myproject"),
+        "/data/": LocalBackend("/shared/datasets", enable_execute=False),
+    },
+)
+
+agent = Agent(
+    "openai:gpt-4o",
+    deps_type=Deps,
+    toolsets=[create_console_toolset()],
+)
+
+result = agent.run_sync(
+    "Read the CSV from /data/sales.csv, analyze it, and save results to /project/report.md",
+    deps=Deps(backend=backend),
+)
+```
+
+## Console Toolset Configuration
+
+```python
+from pydantic_ai_backends import create_console_toolset
+
+# Default: all tools, execute requires approval
+toolset = create_console_toolset()
+
+# Without shell execution
+toolset = create_console_toolset(include_execute=False)
+
+# Require approval for write operations
+toolset = create_console_toolset(
+    require_write_approval=True,
+    require_execute_approval=True,
+)
+
+# Custom toolset ID
+toolset = create_console_toolset(id="file-tools")
+```
+
+**Available tools:** `ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`, `execute`
+
+## Built-in Docker Runtimes
 
 ```python
 from pydantic_ai_backends import DockerSandbox
 
-# Mount a host directory to persist files
-sandbox = DockerSandbox(
-    image="python:3.12-slim",
-    volumes={"/local/workspace": "/workspace"}  # host:container
-)
-
-# Files saved to /workspace in container persist on host
-sandbox.write("/workspace/output.csv", "data...")
-sandbox.stop()  # File remains at /local/workspace/output.csv
+# Pre-configured environments
+sandbox = DockerSandbox(runtime="python-datascience")
 ```
 
-#### Automatic Per-Session Storage (SessionManager)
+| Runtime | Base Image | Packages |
+|---------|------------|----------|
+| `python-minimal` | python:3.12-slim | (none) |
+| `python-datascience` | python:3.12-slim | pandas, numpy, matplotlib, scikit-learn, seaborn |
+| `python-web` | python:3.12-slim | fastapi, uvicorn, sqlalchemy, httpx |
+| `node-minimal` | node:20-slim | (none) |
+| `node-react` | node:20-slim | typescript, vite, react, react-dom |
+
+Custom runtime:
 
 ```python
-from pydantic_ai_backends import SessionManager
+from pydantic_ai_backends import DockerSandbox, RuntimeConfig
 
-# Automatically create persistent storage for each session
-manager = SessionManager(
-    workspace_root="/app/sessions",  # Root directory for all sessions
-    default_runtime="python-datascience",
+runtime = RuntimeConfig(
+    name="ml-env",
+    base_image="python:3.12-slim",
+    packages=["torch", "transformers", "accelerate"],
+    env_vars={"PYTHONUNBUFFERED": "1"},
 )
 
-# Creates /app/sessions/{session_id}/workspace automatically
-sandbox = await manager.get_or_create("user-123")
-
-# Files persist even after container stops or app restarts
-sandbox.write("/workspace/results.csv", "analysis results...")
-
-# Later: user returns, same files are available
-sandbox = await manager.get_or_create("user-123")  # Files still there!
-```
-
-### Composite Backend for Complex Routing
-
-```python
-from pydantic_ai_backends import CompositeBackend, StateBackend, FilesystemBackend
-
-# Route different paths to different backends
-backend = CompositeBackend(
-    default=StateBackend(),  # In-memory for temp files
-    routes={
-        "/project/": FilesystemBackend("/home/user/myproject"),
-        "/data/": FilesystemBackend("/shared/datasets"),
-    },
-)
-
-# Routes to FilesystemBackend at /home/user/myproject
-backend.write("/project/src/main.py", "print('hello')")
-
-# Routes to FilesystemBackend at /shared/datasets
-data = backend.read("/data/sales.csv")
-
-# Routes to StateBackend (in-memory)
-backend.write("/temp/scratch.txt", "temporary data")
+sandbox = DockerSandbox(runtime=runtime)
 ```
 
 ## Backend Protocol
@@ -238,104 +322,44 @@ backend.write("/temp/scratch.txt", "temporary data")
 All backends implement `BackendProtocol`:
 
 ```python
-from typing import Protocol
-
 class BackendProtocol(Protocol):
-    def ls_info(self, path: str) -> list[FileInfo]:
-        """List directory contents."""
-        ...
-
-    def read(self, path: str, offset: int = 0, limit: int = 2000) -> str:
-        """Read file with line numbers (offset/limit in lines)."""
-        ...
-
-    def write(self, path: str, content: str | bytes) -> WriteResult:
-        """Write content to file."""
-        ...
-
-    def edit(self, path: str, old: str, new: str, replace_all: bool = False) -> EditResult:
-        """Replace text in file."""
-        ...
-
-    def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:
-        """Find files matching glob pattern."""
-        ...
-
-    def grep_raw(self, pattern: str, path: str | None = None, glob: str | None = None) -> list[GrepMatch] | str:
-        """Search file contents with regex."""
-        ...
+    def ls_info(self, path: str) -> list[FileInfo]: ...
+    def read(self, path: str, offset: int = 0, limit: int = 2000) -> str: ...
+    def write(self, path: str, content: str | bytes) -> WriteResult: ...
+    def edit(self, path: str, old: str, new: str, replace_all: bool = False) -> EditResult: ...
+    def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]: ...
+    def grep_raw(self, pattern: str, path: str | None = None, glob: str | None = None) -> list[GrepMatch] | str: ...
 ```
 
-`SandboxProtocol` extends this with command execution:
+`LocalBackend` and `DockerSandbox` also provide shell execution:
 
 ```python
-class SandboxProtocol(BackendProtocol, Protocol):
-    def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse:
-        """Execute shell command."""
-        ...
-
-    @property
-    def id(self) -> str:
-        """Unique sandbox identifier."""
-        ...
+def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse: ...
 ```
 
-## Quick Reference
+## Examples
 
-### In-Memory Backend (Testing)
+Full working examples in [`examples/`](examples/):
 
-```python
-from pydantic_ai_backends import StateBackend
-
-backend = StateBackend()
-backend.write("/app.py", "print('hello')")
-content = backend.read("/app.py")  # Returns with line numbers
-matches = backend.grep_raw("print")  # Search content
-```
-
-### Filesystem Backend
-
-```python
-from pydantic_ai_backends import FilesystemBackend
-
-backend = FilesystemBackend("/path/to/workspace")
-backend.write("/data/file.txt", "content")  # Sandboxed to workspace
-files = backend.glob_info("**/*.py")
-```
-
-### Docker Sandbox
-
-```python
-from pydantic_ai_backends import DockerSandbox
-
-sandbox = DockerSandbox(image="python:3.12-slim")
-sandbox.write("/workspace/script.py", "print(1+1)")
-result = sandbox.execute("python /workspace/script.py")
-print(result.output)  # "2"
-sandbox.stop()
-```
+| Example | Description | Backend |
+|---------|-------------|---------|
+| [**local_cli**](examples/local_cli/) | CLI coding assistant | `LocalBackend` |
+| [**web_production**](examples/web_production/) | Multi-user web app with UI | `DockerSandbox` + `SessionManager` |
 
 ## Development
 
 ```bash
-# Clone and install
 git clone https://github.com/vstorm-co/pydantic-ai-backend.git
 cd pydantic-ai-backend
 make install
-
-# Run tests
 make test
-
-# Run all checks
-make all
 ```
 
 ## Related Projects
 
-- **[pydantic-ai](https://github.com/pydantic/pydantic-ai)** - The foundation: Agent framework by Pydantic
+- **[pydantic-ai](https://github.com/pydantic/pydantic-ai)** - Agent framework by Pydantic
 - **[pydantic-deep](https://github.com/vstorm-co/pydantic-deepagents)** - Full agent framework (uses this library)
 - **[pydantic-ai-todo](https://github.com/vstorm-co/pydantic-ai-todo)** - Task planning toolset
-- **[fastapi-fullstack](https://github.com/vstorm-co/full-stack-fastapi-nextjs-llm-template)** - Full-stack AI app template
 
 ## License
 

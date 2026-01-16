@@ -1,19 +1,33 @@
 """File storage and sandbox backends for AI agents.
 
 pydantic-ai-backend provides a unified interface for file storage and
-command execution across different backends (in-memory, filesystem, Docker).
+command execution across different backends (in-memory, local, Docker).
 
 Basic usage:
     ```python
-    from pydantic_ai_backends import StateBackend, FilesystemBackend
+    from pydantic_ai_backends import StateBackend, LocalBackend
 
     # In-memory storage (for testing)
     backend = StateBackend()
     backend.write("/app.py", "print('hello')")
     content = backend.read("/app.py")
 
-    # Real filesystem
-    backend = FilesystemBackend("/workspace")
+    # Local filesystem with shell
+    backend = LocalBackend("/workspace")
+    result = backend.execute("python app.py")
+    ```
+
+Console toolset for AI agents:
+    ```python
+    from dataclasses import dataclass
+    from pydantic_ai_backends import LocalBackend, create_console_toolset
+
+    @dataclass
+    class MyDeps:
+        backend: LocalBackend
+
+    toolset = create_console_toolset()
+    # Provides: ls, read_file, write_file, edit_file, glob, grep, execute
     ```
 
 Docker sandbox (requires optional dependencies):
@@ -32,10 +46,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 # Core exports - always available
-from pydantic_ai_backends.composite import CompositeBackend
-from pydantic_ai_backends.filesystem import FilesystemBackend
+from pydantic_ai_backends.backends.composite import CompositeBackend
+from pydantic_ai_backends.backends.local import LocalBackend
+from pydantic_ai_backends.backends.state import StateBackend
 from pydantic_ai_backends.protocol import BackendProtocol, SandboxProtocol
-from pydantic_ai_backends.state import StateBackend
 from pydantic_ai_backends.types import (
     EditResult,
     ExecuteResponse,
@@ -47,18 +61,33 @@ from pydantic_ai_backends.types import (
 )
 
 if TYPE_CHECKING:
-    from pydantic_ai_backends.runtimes import BUILTIN_RUNTIMES, get_runtime
-    from pydantic_ai_backends.sandbox import BaseSandbox, DockerSandbox, LocalSandbox
-    from pydantic_ai_backends.session import SessionManager
+    from pydantic_ai_backends.backends.docker import (
+        BUILTIN_RUNTIMES,
+        BaseSandbox,
+        DockerSandbox,
+        SessionManager,
+    )
+    from pydantic_ai_backends.backends.docker.runtimes import get_runtime
+    from pydantic_ai_backends.toolsets.console import (
+        ConsoleDeps,
+        ConsoleToolset,
+        create_console_toolset,
+        get_console_system_prompt,
+    )
 
-# Lazy loading for optional Docker dependencies
+# Lazy loading for optional dependencies
 _LAZY_IMPORTS = {
-    "DockerSandbox": "pydantic_ai_backends.sandbox",
-    "BaseSandbox": "pydantic_ai_backends.sandbox",
-    "LocalSandbox": "pydantic_ai_backends.sandbox",
-    "SessionManager": "pydantic_ai_backends.session",
-    "BUILTIN_RUNTIMES": "pydantic_ai_backends.runtimes",
-    "get_runtime": "pydantic_ai_backends.runtimes",
+    # Console toolset (requires pydantic-ai)
+    "create_console_toolset": "pydantic_ai_backends.toolsets.console",
+    "get_console_system_prompt": "pydantic_ai_backends.toolsets.console",
+    "ConsoleToolset": "pydantic_ai_backends.toolsets.console",
+    "ConsoleDeps": "pydantic_ai_backends.toolsets.console",
+    # Docker sandbox (requires docker extra)
+    "DockerSandbox": "pydantic_ai_backends.backends.docker.sandbox",
+    "BaseSandbox": "pydantic_ai_backends.backends.docker.sandbox",
+    "SessionManager": "pydantic_ai_backends.backends.docker.session",
+    "BUILTIN_RUNTIMES": "pydantic_ai_backends.backends.docker.runtimes",
+    "get_runtime": "pydantic_ai_backends.backends.docker.runtimes",
 }
 
 
@@ -86,16 +115,25 @@ __all__ = [
     "RuntimeConfig",
     # Backends
     "StateBackend",
-    "FilesystemBackend",
+    "LocalBackend",
     "CompositeBackend",
-    # Sandbox (optional - requires docker extra)
+    # Console toolset (requires pydantic-ai)
+    "create_console_toolset",
+    "get_console_system_prompt",
+    "ConsoleToolset",
+    "ConsoleDeps",
+    # Docker sandbox (optional - requires docker extra)
     "BaseSandbox",
     "DockerSandbox",
-    "LocalSandbox",
     "SessionManager",
     # Runtimes
     "BUILTIN_RUNTIMES",
     "get_runtime",
 ]
 
-__version__ = "0.0.1"
+try:
+    from importlib.metadata import version as _get_version
+
+    __version__ = _get_version("pydantic-ai-backend")
+except Exception:  # pragma: no cover
+    __version__ = "0.0.0"

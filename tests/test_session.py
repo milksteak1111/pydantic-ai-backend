@@ -5,8 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pydantic_ai_backends.session import SessionManager
-from pydantic_ai_backends.types import RuntimeConfig
+from pydantic_ai_backends import RuntimeConfig, SessionManager
 
 
 class MockDockerSandbox:
@@ -73,7 +72,7 @@ class TestSessionManager:
         """Test creating a new session."""
         manager = SessionManager()
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             sandbox = await manager.get_or_create("user-123")
             assert sandbox.session_id == "user-123"
             assert "user-123" in manager
@@ -84,7 +83,7 @@ class TestSessionManager:
         """Test retrieving existing session."""
         manager = SessionManager()
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             sandbox1 = await manager.get_or_create("user-123")
             sandbox2 = await manager.get_or_create("user-123")
             assert sandbox1 is sandbox2
@@ -95,7 +94,7 @@ class TestSessionManager:
         """Test that dead sessions are recreated."""
         manager = SessionManager()
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             sandbox1 = await manager.get_or_create("user-123")
             sandbox1._alive = False  # type: ignore[attr-defined]  # Mock attribute
 
@@ -108,7 +107,7 @@ class TestSessionManager:
         """Test releasing an existing session."""
         manager = SessionManager()
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             await manager.get_or_create("user-123")
             assert manager.session_count == 1
 
@@ -129,7 +128,7 @@ class TestSessionManager:
         """Test cleaning up idle sessions."""
         manager = SessionManager(default_idle_timeout=10)
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             sandbox1 = await manager.get_or_create("user-1")
             sandbox2 = await manager.get_or_create("user-2")
 
@@ -148,7 +147,7 @@ class TestSessionManager:
         """Test cleanup uses default timeout when not specified."""
         manager = SessionManager(default_idle_timeout=5)
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             sandbox = await manager.get_or_create("user-1")
             sandbox._last_activity = time.time() - 10  # 10 seconds ago
 
@@ -160,7 +159,7 @@ class TestSessionManager:
         """Test shutting down all sessions."""
         manager = SessionManager()
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             await manager.get_or_create("user-1")
             await manager.get_or_create("user-2")
             await manager.get_or_create("user-3")
@@ -255,7 +254,7 @@ class TestSessionManager:
         """Test that workspace_root creates directories and passes volumes."""
         manager = SessionManager(workspace_root=tmp_path)
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             sandbox = await manager.get_or_create("user-123")
 
             # Check that directory was created
@@ -273,7 +272,7 @@ class TestSessionManager:
         """Test that without workspace_root, no volumes are set."""
         manager = SessionManager()
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             sandbox = await manager.get_or_create("user-123")
             assert sandbox._volumes == {}
 
@@ -282,7 +281,7 @@ class TestSessionManager:
         """Test that multiple sessions get separate workspace directories."""
         manager = SessionManager(workspace_root=tmp_path)
 
-        with patch("pydantic_ai_backends.sandbox.DockerSandbox", MockDockerSandbox):
+        with patch("pydantic_ai_backends.backends.docker.sandbox.DockerSandbox", MockDockerSandbox):
             sandbox1 = await manager.get_or_create("user-1")
             sandbox2 = await manager.get_or_create("user-2")
 
