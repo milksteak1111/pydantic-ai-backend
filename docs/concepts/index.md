@@ -87,20 +87,7 @@ finally:
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────┐
-│              Your pydantic-ai Agent              │
-├─────────────────────────────────────────────────┤
-│              Console Toolset                     │
-│   (ls, read, write, edit, glob, grep, execute)  │
-├─────────────────────────────────────────────────┤
-│                   Backend                        │
-│  ┌─────────────┬──────────────┬──────────────┐  │
-│  │ LocalBackend│ StateBackend │DockerSandbox │  │
-│  │ (filesystem)│  (in-memory) │   (docker)   │  │
-│  └─────────────┴──────────────┴──────────────┘  │
-└─────────────────────────────────────────────────┘
-```
+![Architecture](../../assets/architecture.png)
 
 ## Choosing a Backend
 

@@ -17,58 +17,7 @@ File storage, sandbox backends, and console toolset for [pydantic-ai](https://gi
 
 ## Architecture
 
-```
-                                    ┌─────────────────────────────────────┐
-                                    │           pydantic-ai Agent         │
-                                    │  ┌───────────────────────────────┐  │
-                                    │  │      Console Toolset          │  │
-                                    │  │  ls, read, write, edit, grep  │  │
-                                    │  │        glob, execute          │  │
-                                    │  └───────────────┬───────────────┘  │
-                                    └──────────────────┼──────────────────┘
-                                                       │
-                                                       ▼
-                              ┌─────────────────────────────────────────────────┐
-                              │              BackendProtocol                    │
-                              │   ls_info, read, write, edit, glob_info, grep   │
-                              └─────────────────────────────────────────────────┘
-                                                       │
-                       ┌───────────────────────────────┼───────────────────────────────┐
-                       │                               │                               │
-                       ▼                               ▼                               ▼
-         ┌─────────────────────────┐     ┌─────────────────────────┐     ┌─────────────────────────┐
-         │      LocalBackend       │     │      StateBackend       │     │     DockerSandbox       │
-         │                         │     │                         │     │                         │
-         │  ┌───────────────────┐  │     │  ┌───────────────────┐  │     │  ┌───────────────────┐  │
-         │  │   Local Files     │  │     │  │   In-Memory       │  │     │  │ Docker Container  │  │
-         │  │   + Shell         │  │     │  │   Dictionary      │  │     │  │ + Isolated Shell  │  │
-         │  └───────────────────┘  │     │  └───────────────────┘  │     │  └───────────────────┘  │
-         │                         │     │                         │     │                         │
-         │  - CLI tools            │     │  - Testing              │     │  - Safe execution       │
-         │  - Dev environments     │     │  - Ephemeral sessions   │     │  - Multi-user apps      │
-         │  - Trusted contexts     │     │  - Stateless APIs       │     │  - Untrusted code       │
-         └─────────────────────────┘     └─────────────────────────┘     └─────────────────────────┘
-                                                                                    │
-                                                                                    ▼
-                                                                         ┌─────────────────────────┐
-                                                                         │    SessionManager       │
-                                                                         │                         │
-                                                                         │  - Per-user sandboxes   │
-                                                                         │  - Idle cleanup         │
-                                                                         │  - Persistent storage   │
-                                                                         └─────────────────────────┘
-
-
-         ┌──────────────────────────────────────────────────────────────────────────────────────────┐
-         │                              CompositeBackend                                            │
-         │                                                                                          │
-         │    Route by path prefix:                                                                 │
-         │    /project/*  ──►  LocalBackend(/home/user/project)                                     │
-         │    /data/*     ──►  LocalBackend(/shared/data, read-only)                                │
-         │    /temp/*     ──►  StateBackend (in-memory)                                             │
-         │    /*          ──►  default backend                                                      │
-         └──────────────────────────────────────────────────────────────────────────────────────────┘
-```
+![Architecture](assets/architecture.png)
 
 ## Installation
 
