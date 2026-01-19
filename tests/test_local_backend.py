@@ -152,6 +152,7 @@ class TestLocalBackendFileOps:
 
         backend.write(".secret.txt", "hidden content")
         backend.write("visible.txt", "visible content")
+        backend.write(".venv/test.txt", "another hidden content")
 
         matches_default = backend.grep_raw("content")
         matches_explicit = backend.grep_raw("content", ignore_hidden=True)
@@ -166,10 +167,14 @@ class TestLocalBackendFileOps:
 
         backend.write(".secret.txt", "hidden content")
         backend.write("visible.txt", "visible content")
-
+        backend.write(".venv/test.txt", "another hidden content")
         matches = backend.grep_raw("content", ignore_hidden=False)
         paths = {match["path"] for match in matches}
-        assert paths == {str(tmp_path / "visible.txt"), str(tmp_path / ".secret.txt")}
+        assert paths == {
+            str(tmp_path / "visible.txt"),
+            str(tmp_path / ".secret.txt"),
+            str(tmp_path / ".venv/test.txt"),
+        }
 
 
 class TestLocalBackendAllowedDirectories:
