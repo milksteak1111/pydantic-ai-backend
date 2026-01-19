@@ -59,6 +59,9 @@ toolset = create_console_toolset(
 
 # Custom toolset ID
 toolset = create_console_toolset(id="my-console")
+
+# Include hidden files by default for grep
+toolset = create_console_toolset(default_ignore_hidden=False)
 ```
 
 ## ConsoleDeps Protocol
@@ -147,10 +150,22 @@ async def glob(ctx, pattern: str, path: str = ".") -> str:
 
 ```python
 async def grep(
-    ctx, pattern: str, path: str | None = None, glob_pattern: str | None = None,
-    output_mode: str = "files_with_matches"
+    ctx,
+    pattern: str,
+    path: str | None = None,
+    glob_pattern: str | None = None,
+    output_mode: str = "files_with_matches",
+    ignore_hidden: bool = True,
 ) -> str:
-    """Search for a regex pattern in files."""
+    """Search for a regex pattern in files.
+
+    Args:
+        pattern: Regex pattern to search for.
+        path: Optional file/directory scope.
+        glob_pattern: Glob filter applied before searching.
+        output_mode: "content", "files_with_matches", or "count".
+        ignore_hidden: Whether to skip hidden files (defaults to the toolset setting).
+    """
 ```
 
 ### execute

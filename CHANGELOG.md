@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `default_ignore_hidden` option in `create_console_toolset()` so agents can opt-in to
+  searching dotfiles by default.
+- `--include-hidden` CLI flag in the `examples/local_cli` agent to expose the new grep
+  behavior from the command line.
+- Hidden-file handling is now documented across README, API references, and console
+  toolset guides.
+
+### Changed
+
+- Console `grep` tool now treats `ignore_hidden` as an override parameter, falling back to
+  the toolset's default when omitted.
+- CLI and documentation examples updated to mention the new hidden-file controls.
+
 ## [0.1.0] - 2025-01-17
 
 ### Added

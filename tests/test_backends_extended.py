@@ -173,6 +173,30 @@ class TestStateBackendExtended:
         assert isinstance(results, list)
         assert all(r["path"].endswith(".py") for r in results)
 
+    def test_grep_raw_hidden_files_ignored_by_default(self):
+        """Hidden files should not be searched unless requested."""
+        backend = StateBackend()
+        backend.write("/.hidden.txt", "secret")
+        backend.write("/visible.txt", "public")
+
+        results_default = backend.grep_raw("secret")
+        results_explicit = backend.grep_raw("secret", ignore_hidden=True)
+
+        for results in (results_default, results_explicit):
+            paths = {match["path"] for match in results}
+            assert "/.hidden.txt" not in paths
+            assert not paths
+
+    def test_grep_raw_hidden_files_included_when_requested(self):
+        """Hidden files should be searchable with ignore_hidden=False."""
+        backend = StateBackend()
+        backend.write("/.hidden.txt", "secret")
+        backend.write("/visible.txt", "public")
+
+        results = backend.grep_raw("secret", ignore_hidden=False)
+        paths = {match["path"] for match in results}
+        assert paths == {"/.hidden.txt"}
+
 
 class TestLocalBackendExtended:
     """Extended tests for LocalBackend."""
@@ -254,6 +278,7 @@ class TestLocalBackendExtended:
         results = backend.grep_raw("world", path="test.txt")
         assert isinstance(results, list)
         assert len(results) == 2
+        assert {match["path"] for match in results} == {str(tmp_path / "test.txt")}
 
     def test_glob_info(self, tmp_path):
         """Test glob_info pattern matching."""

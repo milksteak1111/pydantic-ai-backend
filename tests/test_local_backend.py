@@ -146,6 +146,31 @@ class TestLocalBackendFileOps:
         assert isinstance(result, list)
         assert len(result) == 2
 
+    def test_grep_raw_hidden_files_ignored_by_default(self, tmp_path: Path):
+        """Hidden files should be excluded when ignore_hidden is True."""
+        backend = LocalBackend(root_dir=tmp_path)
+
+        backend.write(".secret.txt", "hidden content")
+        backend.write("visible.txt", "visible content")
+
+        matches_default = backend.grep_raw("content")
+        matches_explicit = backend.grep_raw("content", ignore_hidden=True)
+
+        for matches in (matches_default, matches_explicit):
+            paths = {match["path"] for match in matches}
+            assert paths == {str(tmp_path / "visible.txt")}
+
+    def test_grep_raw_hidden_files_included_when_requested(self, tmp_path: Path):
+        """Hidden files should be searched when ignore_hidden=False."""
+        backend = LocalBackend(root_dir=tmp_path)
+
+        backend.write(".secret.txt", "hidden content")
+        backend.write("visible.txt", "visible content")
+
+        matches = backend.grep_raw("content", ignore_hidden=False)
+        paths = {match["path"] for match in matches}
+        assert paths == {str(tmp_path / "visible.txt"), str(tmp_path / ".secret.txt")}
+
 
 class TestLocalBackendAllowedDirectories:
     """Test LocalBackend with allowed_directories restriction."""

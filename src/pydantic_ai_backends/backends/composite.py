@@ -125,8 +125,11 @@ class CompositeBackend:
         return self._get_backend(path).glob_info(pattern, path)
 
     def grep_raw(
-        self, pattern: str, path: str | None = None, glob: str | None = None,
-            ignore_hidden: bool = True
+        self,
+        pattern: str,
+        path: str | None = None,
+        glob: str | None = None,
+        ignore_hidden: bool = True,
     ) -> list[GrepMatch] | str:
         """Grep across all backends if no specific path."""
         if path is None or path == "/" or path == "":

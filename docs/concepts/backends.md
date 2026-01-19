@@ -177,7 +177,11 @@ class BackendProtocol(Protocol):
         ...
 
     def grep_raw(
-        self, pattern: str, path: str | None = None, glob: str | None = None
+        self,
+        pattern: str,
+        path: str | None = None,
+        glob: str | None = None,
+        ignore_hidden: bool = True,
     ) -> list[GrepMatch] | str:
         """Search file contents with regex."""
         ...

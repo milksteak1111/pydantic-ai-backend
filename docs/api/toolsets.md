@@ -112,6 +112,7 @@ async def grep(
     path: str | None = None,
     glob_pattern: str | None = None,
     output_mode: Literal["content", "files_with_matches", "count"] = "files_with_matches",
+    ignore_hidden: bool = True,
 ) -> str:
     """Search for a regex pattern in files.
 
@@ -120,6 +121,7 @@ async def grep(
         path: Specific file or directory to search.
         glob_pattern: Glob pattern to filter files.
         output_mode: Output format.
+        ignore_hidden: Whether to skip hidden files (defaults to the toolset setting).
     """
 ```
 

@@ -1,5 +1,6 @@
 """Tests for console toolset."""
 
+import inspect
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -90,6 +91,17 @@ class TestCreateConsoleToolset:
         # Check requires_approval setting
         assert toolset.tools["write_file"].requires_approval is True
         assert toolset.tools["edit_file"].requires_approval is True
+
+    def test_toolset_default_ignore_hidden_configurable(self):
+        """Grep should respect default ignore hidden flag."""
+        toolset = create_console_toolset(default_ignore_hidden=False)
+
+        assert hasattr(toolset, "_console_default_ignore_hidden")
+        assert toolset._console_default_ignore_hidden is False
+
+        grep_impl = toolset._console_grep_impl
+        params = inspect.signature(grep_impl).parameters
+        assert params["ignore_hidden"].default is False
 
 
 class TestGetConsoleSystemPrompt:

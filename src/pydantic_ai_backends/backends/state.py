@@ -33,6 +33,7 @@ def _normalize_path(path: str) -> str:
         path = path.rstrip("/")
     return path
 
+
 def _is_not_hidden_path(path: str) -> bool:
     """Check if path is hidden."""
     return not path.startswith(".") and "/." not in path
@@ -69,9 +70,10 @@ class StateBackend:
             files: Optional initial file dictionary.
         """
         self._files: dict[str, FileData] = files if files is not None else {}
-        self._files_not_hidden: dict[str, FileData] = {path: data for path, data in
-                                                       self._files.items() if
-                                                       _is_not_hidden_path(path)}
+
+    @property
+    def _files_not_hidden(self) -> dict[str, FileData]:
+        return {path: data for path, data in self._files.items() if _is_not_hidden_path(path)}
 
     @property
     def files(self) -> dict[str, FileData]:
@@ -278,8 +280,11 @@ class StateBackend:
         return sorted(results, key=lambda x: x["path"])
 
     def grep_raw(
-        self, pattern: str, path: str | None = None, glob: str | None = None,
-            ignore_hidden: bool = True
+        self,
+        pattern: str,
+        path: str | None = None,
+        glob: str | None = None,
+        ignore_hidden: bool = True,
     ) -> list[GrepMatch] | str:
         """Search for pattern in files."""
         try:

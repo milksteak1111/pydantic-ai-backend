@@ -327,8 +327,11 @@ class LocalBackend:
         return sorted(results, key=lambda x: x["path"])
 
     def grep_raw(
-        self, pattern: str, path: str | None = None, glob: str | None = None,
-            ignore_hidden: bool = True
+        self,
+        pattern: str,
+        path: str | None = None,
+        glob: str | None = None,
+        ignore_hidden: bool = True,
     ) -> list[GrepMatch] | str:
         """Search for pattern in files.
 
@@ -341,8 +344,9 @@ class LocalBackend:
         except PermissionError as e:  # pragma: no cover
             return str(e)
 
-        # Try ripgrep first
-        if shutil.which("rg"):  # pragma: no cover
+        # Try ripgrep first when searching directories for better performance
+        use_ripgrep = shutil.which("rg") is not None and not validated_path.is_file()
+        if use_ripgrep:  # pragma: no cover
             return self._grep_ripgrep(pattern, validated_path, glob, ignore_hidden)
 
         return self._grep_python(pattern, validated_path, glob, ignore_hidden)  # pragma: no cover
@@ -357,12 +361,21 @@ class LocalBackend:
             cmd.extend(["--glob", glob])
 
         if not ignore_hidden:
-            cmd.append("-.")
+            cmd.append("--hidden")
+
+        if search_path.is_file():
+            rg_cwd = search_path.parent
+            target = search_path.name
+        else:
+            rg_cwd = search_path
+            target = "."
+
+        cmd.append(target)
 
         try:
             result = subprocess.run(
                 cmd,
-                cwd=search_path,
+                cwd=rg_cwd,
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -389,7 +402,8 @@ class LocalBackend:
 
                 # Convert to absolute path and validate
                 try:
-                    full_path = (search_path / file_path).resolve()
+                    base_path = search_path.parent if search_path.is_file() else search_path
+                    full_path = (base_path / file_path).resolve()
                     self._validate_path(str(full_path))
                     results.append(
                         GrepMatch(
@@ -404,8 +418,11 @@ class LocalBackend:
         return results
 
     def _grep_python(  # pragma: no cover
-        self, pattern: str, search_path: Path, glob_pattern: str | None = None,
-            ignore_hidden: bool = True
+        self,
+        pattern: str,
+        search_path: Path,
+        glob_pattern: str | None = None,
+        ignore_hidden: bool = True,
     ) -> list[GrepMatch] | str:
         """Use Python regex for searching (fallback)."""
         try:

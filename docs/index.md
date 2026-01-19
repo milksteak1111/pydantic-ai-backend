@@ -121,7 +121,7 @@ Your pydantic-ai agent gets these tools automatically:
 | `write_file` | Create or overwrite a file |
 | `edit_file` | Replace strings in a file |
 | `glob` | Find files matching a pattern |
-| `grep` | Search for patterns in files |
+| `grep` | Search for patterns in files (set `default_ignore_hidden=False` to include dotfiles) |
 | `execute` | Run shell commands (optional) |
 
 ## Backend Comparison
