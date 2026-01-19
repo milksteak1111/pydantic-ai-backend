@@ -327,7 +327,8 @@ class LocalBackend:
         return sorted(results, key=lambda x: x["path"])
 
     def grep_raw(
-        self, pattern: str, path: str | None = None, glob: str | None = None
+        self, pattern: str, path: str | None = None, glob: str | None = None,
+            ignore_hidden: bool = True
     ) -> list[GrepMatch] | str:
         """Search for pattern in files.
 
@@ -342,18 +343,21 @@ class LocalBackend:
 
         # Try ripgrep first
         if shutil.which("rg"):  # pragma: no cover
-            return self._grep_ripgrep(pattern, validated_path, glob)
+            return self._grep_ripgrep(pattern, validated_path, glob, ignore_hidden)
 
-        return self._grep_python(pattern, validated_path, glob)  # pragma: no cover
+        return self._grep_python(pattern, validated_path, glob, ignore_hidden)  # pragma: no cover
 
     def _grep_ripgrep(  # pragma: no cover
-        self, pattern: str, search_path: Path, glob: str | None = None
+        self, pattern: str, search_path: Path, glob: str | None = None, ignore_hidden: bool = True
     ) -> list[GrepMatch] | str:
         """Use ripgrep for fast searching."""
         cmd = ["rg", "--line-number", "--no-heading", pattern]
 
         if glob:
             cmd.extend(["--glob", glob])
+
+        if not ignore_hidden:
+            cmd.append("-.")
 
         try:
             result = subprocess.run(
@@ -400,7 +404,8 @@ class LocalBackend:
         return results
 
     def _grep_python(  # pragma: no cover
-        self, pattern: str, search_path: Path, glob_pattern: str | None = None
+        self, pattern: str, search_path: Path, glob_pattern: str | None = None,
+            ignore_hidden: bool = True
     ) -> list[GrepMatch] | str:
         """Use Python regex for searching (fallback)."""
         try:
@@ -420,6 +425,8 @@ class LocalBackend:
                 files = list(search_path.glob(glob_pattern))
             else:
                 files = list(search_path.rglob("*"))
+            if ignore_hidden:
+                files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
 
         for file_path in files:
             if not file_path.is_file():

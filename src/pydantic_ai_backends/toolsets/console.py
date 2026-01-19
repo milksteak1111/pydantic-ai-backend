@@ -215,6 +215,7 @@ def create_console_toolset(  # noqa: C901
         path: str | None = None,
         glob_pattern: str | None = None,
         output_mode: Literal["content", "files_with_matches", "count"] = "files_with_matches",
+        ignore_hidden: bool = True,
     ) -> str:
         """Search for a regex pattern in files.
 
@@ -223,8 +224,9 @@ def create_console_toolset(  # noqa: C901
             path: Specific file or directory to search.
             glob_pattern: Glob pattern to filter files (e.g., "*.py").
             output_mode: Output format - "content", "files_with_matches", or "count".
+            ignore_hidden: Ignore hidden files (files or directories starting with '.').
         """
-        result = ctx.deps.backend.grep_raw(pattern, path, glob_pattern)
+        result = ctx.deps.backend.grep_raw(pattern, path, glob_pattern, ignore_hidden)
 
         if isinstance(result, str):
             return result  # Error message

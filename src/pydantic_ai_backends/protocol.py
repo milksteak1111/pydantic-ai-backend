@@ -111,7 +111,7 @@ class BackendProtocol(Protocol):
         ...
 
     def grep_raw(
-        self, pattern: str, path: str | None = None, glob: str | None = None
+        self, pattern: str, path: str | None = None, glob: str | None = None, ignore_hidden: bool = True
     ) -> list[GrepMatch] | str:
         """Search for pattern in files.
 
@@ -119,6 +119,7 @@ class BackendProtocol(Protocol):
             pattern: Regex pattern to search for.
             path: Specific file or directory to search.
             glob: Glob pattern to filter files.
+            ignore_hidden: If True, ignore hidden files.
 
         Returns:
             List of GrepMatch objects or error string.

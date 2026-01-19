@@ -239,16 +239,19 @@ class BaseSandbox(ABC):
         return sorted(entries, key=lambda x: x["path"])
 
     def grep_raw(  # pragma: no cover
-        self, pattern: str, path: str | None = None, glob: str | None = None
+        self, pattern: str, path: str | None = None, glob: str | None = None,
+            ignore_hidden: bool = True
     ) -> list[GrepMatch] | str:
         """Search using grep command."""
         search_path = path or "/"
 
         search_path = shlex.quote(search_path)
+        hidden_expression = " --exclude='.*' --exclude-dir='.*'" if ignore_hidden else ""
+
         if glob:
-            cmd = f"grep -rn '{pattern}' {search_path} --include='{glob}'"
+            cmd = f"grep {hidden_expression} -rn '{pattern}' {search_path} --include='{glob}'"
         else:
-            cmd = f"grep -rn '{pattern}' {search_path}"
+            cmd = f"grep {hidden_expression} -rn '{pattern}' {search_path}"
 
         result = self.execute(cmd)
 

@@ -33,6 +33,10 @@ def _normalize_path(path: str) -> str:
         path = path.rstrip("/")
     return path
 
+def _is_not_hidden_path(path: str) -> bool:
+    """Check if path is hidden."""
+    return not path.startswith(".") and "/." not in path
+
 
 class StateBackend:
     """In-memory file storage backend.
@@ -65,6 +69,9 @@ class StateBackend:
             files: Optional initial file dictionary.
         """
         self._files: dict[str, FileData] = files if files is not None else {}
+        self._files_not_hidden: dict[str, FileData] = {path: data for path, data in
+                                                       self._files.items() if
+                                                       _is_not_hidden_path(path)}
 
     @property
     def files(self) -> dict[str, FileData]:
@@ -271,7 +278,8 @@ class StateBackend:
         return sorted(results, key=lambda x: x["path"])
 
     def grep_raw(
-        self, pattern: str, path: str | None = None, glob: str | None = None
+        self, pattern: str, path: str | None = None, glob: str | None = None,
+            ignore_hidden: bool = True
     ) -> list[GrepMatch] | str:
         """Search for pattern in files."""
         try:
@@ -280,7 +288,7 @@ class StateBackend:
             return f"Error: Invalid regex pattern: {e}"
 
         results: list[GrepMatch] = []
-
+        files = self._files_not_hidden if ignore_hidden else self._files
         # Determine which files to search
         files_to_search: list[str] = []
 
@@ -290,14 +298,14 @@ class StateBackend:
                 return f"Error: {error}"
             path = _normalize_path(path)
 
-            if path in self._files:
+            if path in files:
                 files_to_search = [path]
             else:
                 # Path is a directory - search all files under it
                 prefix = path if path == "/" else path + "/"
-                files_to_search = [f for f in self._files if f.startswith(prefix)]
+                files_to_search = [f for f in files if f.startswith(prefix)]
         else:
-            files_to_search = list(self._files.keys())
+            files_to_search = list(files.keys())
 
         # Filter by glob if provided
         if glob:
@@ -310,7 +318,7 @@ class StateBackend:
 
         # Search each file
         for file_path in files_to_search:
-            lines = self._files[file_path]["content"]
+            lines = files[file_path]["content"]
             for i, line in enumerate(lines):
                 if regex.search(line):
                     results.append(
