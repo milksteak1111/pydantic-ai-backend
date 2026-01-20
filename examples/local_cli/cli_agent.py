@@ -46,17 +46,20 @@ When the user asks you to do something:
 def create_cli_agent(
     model: str = "openai:gpt-4o-mini",
     enable_execute: bool = True,
+    ignore_hidden: bool = True,
 ) -> Agent[AgentDeps, str]:
     """Create a CLI agent with console tools.
 
     Args:
         model: The model to use (e.g., "openai:gpt-4o-mini", "anthropic:claude-3-haiku")
         enable_execute: Whether to allow shell command execution
+        ignore_hidden: Default grep behavior for hidden files.
     """
     toolset = create_console_toolset(
         include_execute=enable_execute,
         require_write_approval=False,
         require_execute_approval=False,
+        default_ignore_hidden=ignore_hidden,
     )
 
     agent: Agent[AgentDeps, str] = Agent(
@@ -152,6 +155,11 @@ def main() -> None:
         action="store_true",
         help="Restrict file access to working directory only",
     )
+    parser.add_argument(
+        "--include-hidden",
+        action="store_true",
+        help="Include hidden files when searching with grep",
+    )
 
     args = parser.parse_args()
 
@@ -171,7 +179,11 @@ def main() -> None:
     )
 
     deps = AgentDeps(backend=backend, working_dir=working_dir)
-    agent = create_cli_agent(model=args.model, enable_execute=not args.no_execute)
+    agent = create_cli_agent(
+        model=args.model,
+        enable_execute=not args.no_execute,
+        ignore_hidden=not args.include_hidden,
+    )
 
     # Run
     if args.task:

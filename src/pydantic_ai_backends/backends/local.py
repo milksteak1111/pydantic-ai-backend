@@ -327,7 +327,11 @@ class LocalBackend:
         return sorted(results, key=lambda x: x["path"])
 
     def grep_raw(
-        self, pattern: str, path: str | None = None, glob: str | None = None
+        self,
+        pattern: str,
+        path: str | None = None,
+        glob: str | None = None,
+        ignore_hidden: bool = True,
     ) -> list[GrepMatch] | str:
         """Search for pattern in files.
 
@@ -340,20 +344,26 @@ class LocalBackend:
         except PermissionError as e:  # pragma: no cover
             return str(e)
 
-        # Try ripgrep first
-        if shutil.which("rg"):  # pragma: no cover
-            return self._grep_ripgrep(pattern, validated_path, glob)
+        # Try ripgrep first when searching directories for better performance
+        use_ripgrep = shutil.which("rg") is not None and not validated_path.is_file()
+        if use_ripgrep:  # pragma: no cover
+            return self._grep_ripgrep(pattern, validated_path, glob, ignore_hidden)
 
-        return self._grep_python(pattern, validated_path, glob)  # pragma: no cover
+        return self._grep_python(pattern, validated_path, glob, ignore_hidden)  # pragma: no cover
 
     def _grep_ripgrep(  # pragma: no cover
-        self, pattern: str, search_path: Path, glob: str | None = None
+        self, pattern: str, search_path: Path, glob: str | None = None, ignore_hidden: bool = True
     ) -> list[GrepMatch] | str:
         """Use ripgrep for fast searching."""
         cmd = ["rg", "--line-number", "--no-heading", pattern]
 
         if glob:
             cmd.extend(["--glob", glob])
+
+        if not ignore_hidden:
+            cmd.append("--hidden")
+
+        cmd.append(".")
 
         try:
             result = subprocess.run(
@@ -385,7 +395,8 @@ class LocalBackend:
 
                 # Convert to absolute path and validate
                 try:
-                    full_path = (search_path / file_path).resolve()
+                    base_path = search_path.parent if search_path.is_file() else search_path
+                    full_path = (base_path / file_path).resolve()
                     self._validate_path(str(full_path))
                     results.append(
                         GrepMatch(
@@ -400,7 +411,11 @@ class LocalBackend:
         return results
 
     def _grep_python(  # pragma: no cover
-        self, pattern: str, search_path: Path, glob_pattern: str | None = None
+        self,
+        pattern: str,
+        search_path: Path,
+        glob_pattern: str | None = None,
+        ignore_hidden: bool = True,
     ) -> list[GrepMatch] | str:
         """Use Python regex for searching (fallback)."""
         try:
@@ -420,6 +435,8 @@ class LocalBackend:
                 files = list(search_path.glob(glob_pattern))
             else:
                 files = list(search_path.rglob("*"))
+            if ignore_hidden:
+                files = [f for f in files if not any(part.startswith(".") for part in f.parts)]
 
         for file_path in files:
             if not file_path.is_file():

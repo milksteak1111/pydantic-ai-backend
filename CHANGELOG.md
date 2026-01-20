@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-01-20
+
+### Added
+
+- `ignore_hidden` parameter to `grep_raw()` in `BackendProtocol` - controls whether hidden
+  files (dotfiles) are included in search results (default: `True` = ignore hidden files).
+- `default_ignore_hidden` option in `create_console_toolset()` so agents can opt-in to
+  searching dotfiles by default.
+- `--include-hidden` CLI flag in the `examples/local_cli` agent to expose the new grep
+  behavior from the command line.
+
+### Changed
+
+- `grep_raw()` now consistently ignores hidden files by default across all backends
+  (`StateBackend`, `LocalBackend`, `CompositeBackend`, `DockerSandbox`).
+- Console `grep` tool now treats `ignore_hidden` as an override parameter, falling back to
+  the toolset's default when omitted.
+
 ## [0.1.0] - 2025-01-17
 
 ### Added

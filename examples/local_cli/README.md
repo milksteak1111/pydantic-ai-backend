@@ -43,6 +43,9 @@ python cli_agent.py --no-execute
 # Restrict file access to working directory only
 python cli_agent.py --restrict
 
+# Include hidden files when searching with grep
+python cli_agent.py --include-hidden
+
 # Run single task
 python cli_agent.py --task "List all Python files and count lines of code"
 ```

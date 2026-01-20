@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Protocol, runtime_checkable
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Literal, Protocol, cast, runtime_checkable
 
 from pydantic_ai import RunContext
 
@@ -47,11 +48,19 @@ class ConsoleDeps(Protocol):
         ...
 
 
+class _ConsoleToolsetTestAttrs(Protocol):
+    """Protocol for test-only attributes on console toolset."""
+
+    _console_default_ignore_hidden: bool
+    _console_grep_impl: Callable[..., Awaitable[str]]
+
+
 def create_console_toolset(  # noqa: C901
     id: str | None = None,
     include_execute: bool = True,
     require_write_approval: bool = False,
     require_execute_approval: bool = True,
+    default_ignore_hidden: bool = True,
 ) -> FunctionToolset[ConsoleDeps]:
     """Create a console toolset for file operations and shell execution.
 
@@ -65,6 +74,7 @@ def create_console_toolset(  # noqa: C901
             Requires backend to have execute() method.
         require_write_approval: Whether write_file and edit_file require approval.
         require_execute_approval: Whether execute requires approval.
+        default_ignore_hidden: Default behavior for grep regarding hidden files.
 
     Returns:
         FunctionToolset with console tools.
@@ -215,6 +225,7 @@ def create_console_toolset(  # noqa: C901
         path: str | None = None,
         glob_pattern: str | None = None,
         output_mode: Literal["content", "files_with_matches", "count"] = "files_with_matches",
+        ignore_hidden: bool = default_ignore_hidden,
     ) -> str:
         """Search for a regex pattern in files.
 
@@ -223,8 +234,9 @@ def create_console_toolset(  # noqa: C901
             path: Specific file or directory to search.
             glob_pattern: Glob pattern to filter files (e.g., "*.py").
             output_mode: Output format - "content", "files_with_matches", or "count".
+            ignore_hidden: Whether to skip hidden files (defaults to toolset setting).
         """
-        result = ctx.deps.backend.grep_raw(pattern, path, glob_pattern)
+        result = ctx.deps.backend.grep_raw(pattern, path, glob_pattern, ignore_hidden)
 
         if isinstance(result, str):
             return result  # Error message
@@ -253,6 +265,10 @@ def create_console_toolset(  # noqa: C901
         if len(matches) > 50:
             lines.append(f"  ... and {len(matches) - 50} more matches")
         return "\n".join(lines)
+
+    # Expose references for testing
+    cast(_ConsoleToolsetTestAttrs, toolset)._console_default_ignore_hidden = default_ignore_hidden
+    cast(_ConsoleToolsetTestAttrs, toolset)._console_grep_impl = grep
 
     if include_execute:
 

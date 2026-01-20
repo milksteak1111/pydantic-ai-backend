@@ -9,6 +9,9 @@ cd examples/local_cli
 pip install pydantic-ai-backend[console]
 export OPENAI_API_KEY=your-key
 python cli_agent.py
+
+# Include hidden files (e.g., .env) when searching
+python cli_agent.py --include-hidden
 ```
 
 ## Basic Implementation
@@ -62,7 +65,7 @@ The agent can:
 - **Read files**: "Read the main.py file"
 - **Write files**: "Create a hello.py that prints Hello World"
 - **Edit files**: "Change the function name from foo to bar"
-- **Search**: "Find all files containing 'TODO'"
+- **Search**: "Find all files containing 'TODO'" (use `--include-hidden` to search dotfiles)
 - **Execute**: "Run the tests"
 
 ## Example Session
@@ -118,6 +121,9 @@ python cli_agent.py --no-execute
 
 # Restrict file access
 python cli_agent.py --restrict
+
+# Include hidden files in searches
+python cli_agent.py --include-hidden
 
 # Single task mode
 python cli_agent.py --task "Create a hello world script"

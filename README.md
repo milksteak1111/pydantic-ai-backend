@@ -230,6 +230,9 @@ toolset = create_console_toolset(
 
 # Custom toolset ID
 toolset = create_console_toolset(id="file-tools")
+
+# Include hidden files by default when using grep
+toolset = create_console_toolset(default_ignore_hidden=False)
 ```
 
 **Available tools:** `ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`, `execute`
@@ -277,7 +280,13 @@ class BackendProtocol(Protocol):
     def write(self, path: str, content: str | bytes) -> WriteResult: ...
     def edit(self, path: str, old: str, new: str, replace_all: bool = False) -> EditResult: ...
     def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]: ...
-    def grep_raw(self, pattern: str, path: str | None = None, glob: str | None = None) -> list[GrepMatch] | str: ...
+    def grep_raw(
+        self,
+        pattern: str,
+        path: str | None = None,
+        glob: str | None = None,
+        ignore_hidden: bool = True,
+    ) -> list[GrepMatch] | str: ...
 ```
 
 `LocalBackend` and `DockerSandbox` also provide shell execution:
