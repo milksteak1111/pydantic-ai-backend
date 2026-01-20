@@ -35,7 +35,9 @@ def _normalize_path(path: str) -> str:
 
 
 def _is_not_hidden_path(path: str) -> bool:
-    """Check if path is hidden."""
+    """Check if path is not hidden.
+
+    Hidden paths is a path where any directory name or the file name itself start with '.'"""
     return not path.startswith(".") and "/." not in path
 
 

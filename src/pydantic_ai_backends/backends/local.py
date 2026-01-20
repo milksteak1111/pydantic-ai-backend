@@ -363,19 +363,12 @@ class LocalBackend:
         if not ignore_hidden:
             cmd.append("--hidden")
 
-        if search_path.is_file():
-            rg_cwd = search_path.parent
-            target = search_path.name
-        else:
-            rg_cwd = search_path
-            target = "."
-
-        cmd.append(target)
+        cmd.append(".")
 
         try:
             result = subprocess.run(
                 cmd,
-                cwd=rg_cwd,
+                cwd=search_path,
                 capture_output=True,
                 text=True,
                 timeout=30,
