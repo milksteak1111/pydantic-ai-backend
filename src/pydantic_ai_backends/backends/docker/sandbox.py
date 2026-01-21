@@ -519,8 +519,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
             # Note: Docker SDK exec_run doesn't support timeout parameter directly.
             # For timeouts, we wrap the command with 'timeout' utility.
             if timeout:
-                command = f"timeout {timeout} sh -c {command!r}"
-                exec_cmd = ["sh", "-c", command]
+                exec_cmd = ["timeout", str(timeout), "sh", "-c", command]
             else:
                 exec_cmd = ["sh", "-c", command]
 
