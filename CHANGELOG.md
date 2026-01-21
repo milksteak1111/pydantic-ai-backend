@@ -42,6 +42,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LocalBackend` now checks permissions after `allowed_directories` validation
 - Legacy `require_write_approval` and `require_execute_approval` flags are preserved for backward compatibility but `permissions` parameter takes precedence when provided
 
+### Fixed
+
+- `DockerSandbox.execute()` no longer incorrectly escapes commands when timeout is specified.
+  Previously, using Python's `repr()` for shell quoting caused issues with commands containing
+  mixed quotes or special characters. ([#3](https://github.com/vstorm-co/pydantic-ai-backend/pull/3))
+
 ### Documentation
 
 - New "Permissions" concept guide with examples
