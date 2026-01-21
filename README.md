@@ -237,6 +237,66 @@ toolset = create_console_toolset(default_ignore_hidden=False)
 
 **Available tools:** `ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`, `execute`
 
+## Permission System
+
+Fine-grained access control for file operations and shell commands:
+
+```python
+from pydantic_ai_backends import LocalBackend, create_console_toolset
+from pydantic_ai_backends.permissions import (
+    DEFAULT_RULESET,
+    READONLY_RULESET,
+    PermissionRuleset,
+    OperationPermissions,
+    PermissionRule,
+)
+
+# Use pre-configured presets
+backend = LocalBackend(root_dir="/workspace", permissions=DEFAULT_RULESET)
+
+# Read-only mode
+backend = LocalBackend(root_dir="/workspace", permissions=READONLY_RULESET)
+
+# Custom rules
+custom_permissions = PermissionRuleset(
+    default="ask",
+    read=OperationPermissions(
+        default="allow",
+        rules=[
+            PermissionRule(pattern="**/.env*", action="deny"),
+            PermissionRule(pattern="**/secrets/**", action="deny"),
+        ],
+    ),
+    write=OperationPermissions(
+        default="ask",
+        rules=[
+            PermissionRule(pattern="**/*.py", action="allow"),
+        ],
+    ),
+    execute=OperationPermissions(
+        default="deny",
+        rules=[
+            PermissionRule(pattern="git *", action="allow"),
+            PermissionRule(pattern="python *", action="allow"),
+        ],
+    ),
+)
+
+backend = LocalBackend(root_dir="/workspace", permissions=custom_permissions)
+
+# With console toolset
+toolset = create_console_toolset(permissions=DEFAULT_RULESET)
+```
+
+**Available presets:**
+
+| Preset | Description |
+|--------|-------------|
+| `DEFAULT_RULESET` | Allow reads (except secrets), ask for writes/executes |
+| `PERMISSIVE_RULESET` | Allow most operations, deny dangerous commands |
+| `READONLY_RULESET` | Allow reads only, deny all writes and executes |
+| `STRICT_RULESET` | Everything requires approval |
+
 ## Built-in Docker Runtimes
 
 ```python
