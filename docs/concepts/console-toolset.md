@@ -64,6 +64,37 @@ toolset = create_console_toolset(id="my-console")
 toolset = create_console_toolset(default_ignore_hidden=False)
 ```
 
+## Permission-based Configuration
+
+For fine-grained control, use the permission system:
+
+```python
+from pydantic_ai_backends import create_console_toolset
+from pydantic_ai_backends.permissions import (
+    DEFAULT_RULESET,
+    READONLY_RULESET,
+    PermissionRuleset,
+    OperationPermissions,
+)
+
+# Use pre-configured presets
+toolset = create_console_toolset(permissions=DEFAULT_RULESET)
+
+# Read-only toolset
+toolset = create_console_toolset(permissions=READONLY_RULESET)
+
+# Custom permissions
+custom = PermissionRuleset(
+    write=OperationPermissions(default="allow"),  # No approval needed
+    execute=OperationPermissions(default="ask"),   # Requires approval
+)
+toolset = create_console_toolset(permissions=custom)
+```
+
+When `permissions` is provided, it overrides the legacy `require_write_approval` and `require_execute_approval` flags.
+
+See [Permissions](permissions.md) for full documentation.
+
 ## ConsoleDeps Protocol
 
 Your dependencies class must have a `backend` property:
@@ -199,5 +230,6 @@ The toolset works with any backend:
 
 ## Next Steps
 
+- [Permissions](permissions.md) - Fine-grained access control
 - [CLI Agent Example](../examples/cli-agent.md) - Build a CLI coding assistant
 - [API Reference](../api/toolsets.md) - Complete API

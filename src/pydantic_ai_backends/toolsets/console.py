@@ -13,6 +13,8 @@ from pydantic_ai_backends.types import GrepMatch
 if TYPE_CHECKING:
     from pydantic_ai.toolsets import FunctionToolset
 
+    from pydantic_ai_backends.permissions.types import PermissionRuleset
+
 
 CONSOLE_SYSTEM_PROMPT = """
 ## Console Tools
@@ -55,12 +57,35 @@ class _ConsoleToolsetTestAttrs(Protocol):
     _console_grep_impl: Callable[..., Awaitable[str]]
 
 
+def _requires_approval_from_ruleset(
+    ruleset: PermissionRuleset | None,
+    operation: str,
+    legacy_flag: bool,
+) -> bool:
+    """Determine if a tool requires approval based on ruleset or legacy flag.
+
+    If a ruleset is provided, checks if the operation's default action is "ask".
+    Otherwise, falls back to the legacy boolean flag.
+    """
+    from pydantic_ai_backends.permissions.types import OperationPermissions
+
+    if ruleset is None:
+        return legacy_flag
+
+    op_perms: OperationPermissions | None = getattr(ruleset, operation, None)
+    if op_perms is None:
+        # Use global default
+        return ruleset.default == "ask"
+    return op_perms.default == "ask"
+
+
 def create_console_toolset(  # noqa: C901
     id: str | None = None,
     include_execute: bool = True,
     require_write_approval: bool = False,
     require_execute_approval: bool = True,
     default_ignore_hidden: bool = True,
+    permissions: PermissionRuleset | None = None,
 ) -> FunctionToolset[ConsoleDeps]:
     """Create a console toolset for file operations and shell execution.
 
@@ -73,8 +98,13 @@ def create_console_toolset(  # noqa: C901
         include_execute: Whether to include the execute tool.
             Requires backend to have execute() method.
         require_write_approval: Whether write_file and edit_file require approval.
+            Ignored if permissions is provided.
         require_execute_approval: Whether execute requires approval.
+            Ignored if permissions is provided.
         default_ignore_hidden: Default behavior for grep regarding hidden files.
+        permissions: Optional permission ruleset to determine tool approval requirements.
+            If provided, overrides require_write_approval and require_execute_approval
+            based on whether the operation's default action is "ask".
 
     Returns:
         FunctionToolset with console tools.
@@ -90,9 +120,20 @@ def create_console_toolset(  # noqa: C901
 
         toolset = create_console_toolset()
         deps = MyDeps(backend=LocalBackend("/workspace"))
+
+        # Or with permissions
+        from pydantic_ai_backends.permissions import DEFAULT_RULESET
+
+        toolset = create_console_toolset(permissions=DEFAULT_RULESET)
         ```
     """
     from pydantic_ai.toolsets import FunctionToolset
+
+    # Determine approval requirements
+    write_approval = _requires_approval_from_ruleset(permissions, "write", require_write_approval)
+    execute_approval = _requires_approval_from_ruleset(
+        permissions, "execute", require_execute_approval
+    )
 
     toolset: FunctionToolset[ConsoleDeps] = FunctionToolset(id=id)
 
@@ -138,7 +179,7 @@ def create_console_toolset(  # noqa: C901
         """
         return ctx.deps.backend.read(path, offset, limit)
 
-    @toolset.tool(requires_approval=require_write_approval)
+    @toolset.tool(requires_approval=write_approval)
     async def write_file(  # pragma: no cover
         ctx: RunContext[ConsoleDeps],
         path: str,
@@ -161,7 +202,7 @@ def create_console_toolset(  # noqa: C901
         lines = content.count("\n") + 1
         return f"Wrote {lines} lines to {result.path}"
 
-    @toolset.tool(requires_approval=require_write_approval)
+    @toolset.tool(requires_approval=write_approval)
     async def edit_file(  # pragma: no cover
         ctx: RunContext[ConsoleDeps],
         path: str,
@@ -272,7 +313,7 @@ def create_console_toolset(  # noqa: C901
 
     if include_execute:
 
-        @toolset.tool(requires_approval=require_execute_approval)
+        @toolset.tool(requires_approval=execute_approval)
         async def execute(  # pragma: no cover
             ctx: RunContext[ConsoleDeps],
             command: str,

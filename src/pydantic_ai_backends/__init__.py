@@ -68,6 +68,25 @@ if TYPE_CHECKING:
         SessionManager,
     )
     from pydantic_ai_backends.backends.docker.runtimes import get_runtime
+    from pydantic_ai_backends.permissions import (
+        DEFAULT_RULESET,
+        PERMISSIVE_RULESET,
+        READONLY_RULESET,
+        SECRETS_PATTERNS,
+        STRICT_RULESET,
+        SYSTEM_PATTERNS,
+        AskCallback,
+        AskFallback,
+        OperationPermissions,
+        PermissionAction,
+        PermissionChecker,
+        PermissionDeniedError,
+        PermissionError,
+        PermissionOperation,
+        PermissionRule,
+        PermissionRuleset,
+        create_ruleset,
+    )
     from pydantic_ai_backends.toolsets.console import (
         ConsoleDeps,
         ConsoleToolset,
@@ -88,6 +107,24 @@ _LAZY_IMPORTS = {
     "SessionManager": "pydantic_ai_backends.backends.docker.session",
     "BUILTIN_RUNTIMES": "pydantic_ai_backends.backends.docker.runtimes",
     "get_runtime": "pydantic_ai_backends.backends.docker.runtimes",
+    # Permissions system
+    "PermissionAction": "pydantic_ai_backends.permissions",
+    "PermissionOperation": "pydantic_ai_backends.permissions",
+    "PermissionRule": "pydantic_ai_backends.permissions",
+    "OperationPermissions": "pydantic_ai_backends.permissions",
+    "PermissionRuleset": "pydantic_ai_backends.permissions",
+    "PermissionChecker": "pydantic_ai_backends.permissions",
+    "PermissionError": "pydantic_ai_backends.permissions",
+    "PermissionDeniedError": "pydantic_ai_backends.permissions",
+    "AskCallback": "pydantic_ai_backends.permissions",
+    "AskFallback": "pydantic_ai_backends.permissions",
+    "DEFAULT_RULESET": "pydantic_ai_backends.permissions",
+    "PERMISSIVE_RULESET": "pydantic_ai_backends.permissions",
+    "READONLY_RULESET": "pydantic_ai_backends.permissions",
+    "STRICT_RULESET": "pydantic_ai_backends.permissions",
+    "SECRETS_PATTERNS": "pydantic_ai_backends.permissions",
+    "SYSTEM_PATTERNS": "pydantic_ai_backends.permissions",
+    "create_ruleset": "pydantic_ai_backends.permissions",
 }
 
 
@@ -129,6 +166,24 @@ __all__ = [
     # Runtimes
     "BUILTIN_RUNTIMES",
     "get_runtime",
+    # Permissions system
+    "PermissionAction",
+    "PermissionOperation",
+    "PermissionRule",
+    "OperationPermissions",
+    "PermissionRuleset",
+    "PermissionChecker",
+    "PermissionError",
+    "PermissionDeniedError",
+    "AskCallback",
+    "AskFallback",
+    "DEFAULT_RULESET",
+    "PERMISSIVE_RULESET",
+    "READONLY_RULESET",
+    "STRICT_RULESET",
+    "SECRETS_PATTERNS",
+    "SYSTEM_PATTERNS",
+    "create_ruleset",
 ]
 
 try:
