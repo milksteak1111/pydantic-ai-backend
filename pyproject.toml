@@ -88,6 +88,10 @@ quote-style = "double"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "docker: marks tests as requiring Docker (deselect with '-m \"not docker\"')",
+]
+addopts = "-m 'not docker'"
 
 # Coverage configuration
 [tool.coverage.run]
@@ -149,4 +153,3 @@ disallow_untyped_defs = false
 # Codespell configuration
 [tool.codespell]
 skip = ".git,.venv*,uv.lock,htmlcov,.coverage"
-

@@ -1,5 +1,7 @@
 """Tests for DockerSandbox initialization (without running Docker)."""
 
+import pytest
+
 
 class TestDockerSandboxInit:
     """Tests for DockerSandbox initialization parameters."""
@@ -94,3 +96,87 @@ class TestDockerSandboxInit:
 
         assert sandbox._id == "my-session"
         assert sandbox._volumes == volumes
+
+
+class TestDockerTimeoutEscaping:
+    """Tests for timeout command escaping (fixes command!r bug).
+
+    These tests verify that commands with quotes, variables, and pipes work
+    correctly when timeout is specified. Previously failed due to command!r bug.
+    """
+
+    @pytest.mark.docker
+    def test_execute_timeout_with_quotes(self):
+        """Test execute with timeout handles quoted strings correctly.
+
+        Previously failed because command!r added extra quotes:
+        command = "echo 'hello world'"
+        command!r = "'echo \\'hello world\\''"  # BAD - extra quotes
+        """
+        pytest.importorskip("docker")
+        from pydantic_ai_backends import DockerSandbox
+
+        sandbox = DockerSandbox()
+        try:
+            # Command with double quotes
+            result = sandbox.execute('echo "hello world"', timeout=5)
+            assert result.exit_code == 0
+            assert "hello world" in result.output
+
+            # Command with single quotes
+            result = sandbox.execute("echo 'goodbye world'", timeout=5)
+            assert result.exit_code == 0
+            assert "goodbye world" in result.output
+        finally:
+            sandbox.stop()
+
+    @pytest.mark.docker
+    def test_execute_timeout_with_variables(self):
+        """Test execute with timeout handles shell variables correctly.
+
+        Previously failed because command!r escaped $ incorrectly:
+        command = "echo $HOME"
+        command!r = "'echo $HOME'"  # $ gets escaped/not expanded
+        """
+        pytest.importorskip("docker")
+        from pydantic_ai_backends import DockerSandbox
+
+        sandbox = DockerSandbox()
+        try:
+            # Shell variable expansion
+            result = sandbox.execute("echo $HOME", timeout=5)
+            assert result.exit_code == 0
+            # HOME should be expanded (not literal "$HOME")
+            assert "$HOME" not in result.output or result.output.strip() != "$HOME"
+
+            # Command substitution
+            result = sandbox.execute("echo $(pwd)", timeout=5)
+            assert result.exit_code == 0
+            assert result.output.strip()  # Should output the working directory
+        finally:
+            sandbox.stop()
+
+    @pytest.mark.docker
+    def test_execute_timeout_with_pipes(self):
+        """Test execute with timeout handles pipes and redirects correctly.
+
+        Previously failed because command!r broke shell piping:
+        command = "echo test | grep test"
+        command!r = "'echo test | grep test'"  # Pipe becomes literal string
+        """
+        pytest.importorskip("docker")
+        from pydantic_ai_backends import DockerSandbox
+
+        sandbox = DockerSandbox()
+        try:
+            # Pipe command
+            result = sandbox.execute("echo 'test line' | grep test", timeout=5)
+            assert result.exit_code == 0
+            assert "test line" in result.output
+
+            # Multiple pipes
+            result = sandbox.execute("echo 'hello world' | tr a-z A-Z | grep HELLO", timeout=5)
+            assert result.exit_code == 0
+            assert "HELLO WORLD" in result.output
+        finally:
+            sandbox.stop()
