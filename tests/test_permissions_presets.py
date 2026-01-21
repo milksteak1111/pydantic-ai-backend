@@ -1,6 +1,5 @@
 """Tests for permission presets."""
 
-
 from pydantic_ai_backends.permissions.checker import PermissionChecker
 from pydantic_ai_backends.permissions.presets import (
     DEFAULT_RULESET,
