@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2025-01-22
+
+### Changed
+
+- **README**: Complete rewrite with centered header, badges, Use Cases table, and vstorm-co branding
+- **Documentation**: Updated styling to match pydantic-deep pink theme
+  - Inter font for text, JetBrains Mono for code
+  - Pink accent color scheme
+  - Custom CSS and announcement bar
+- **mkdocs.yml**: Updated with full Material theme configuration
+
+### Added
+
+- **Custom Styling**: docs/overrides/main.html, docs/stylesheets/extra.css
+- **Abbreviations**: docs/includes/abbreviations.md for markdown expansions
+- **FAQ Section**: Expanded getting-help.md with common questions
+
 ## [0.1.3] - 2026-01-22
 
 ### Fixed

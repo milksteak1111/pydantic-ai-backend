@@ -106,7 +106,7 @@ Available presets: `DEFAULT_RULESET`, `PERMISSIVE_RULESET`, `READONLY_RULESET`, 
 
 ## Architecture
 
-![Architecture](../../assets/architecture.png)
+![Architecture](../assets/architecture.png)
 
 ## Choosing a Backend
 

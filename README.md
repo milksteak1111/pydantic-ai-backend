@@ -1,34 +1,60 @@
-# pydantic-ai-backend
+<h1 align="center">File Storage & Sandbox Backends for Pydantic AI</h1>
 
-[![PyPI version](https://img.shields.io/pypi/v/pydantic-ai-backend.svg)](https://pypi.org/project/pydantic-ai-backend/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Coverage Status](https://coveralls.io/repos/github/vstorm-co/pydantic-ai-backend/badge.svg?branch=main)](https://coveralls.io/github/vstorm-co/pydantic-ai-backend?branch=main)
+<p align="center">
+  <em>Console Toolset, Docker Sandbox, and Permission System for AI Agents</em>
+</p>
 
-File storage, sandbox backends, and console toolset for [pydantic-ai](https://github.com/pydantic/pydantic-ai) agents.
+<p align="center">
+  <a href="https://pypi.org/project/pydantic-ai-backend/"><img src="https://img.shields.io/pypi/v/pydantic-ai-backend.svg" alt="PyPI version"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="Python 3.10+"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="https://github.com/vstorm-co/pydantic-ai-backend/actions/workflows/ci.yml"><img src="https://github.com/vstorm-co/pydantic-ai-backend/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/pydantic/pydantic-ai"><img src="https://img.shields.io/badge/Powered%20by-Pydantic%20AI-E92063?logo=pydantic&logoColor=white" alt="Pydantic AI"></a>
+</p>
 
-> **Looking for a complete agent framework?** Check out [pydantic-deep](https://github.com/vstorm-co/pydantic-deepagents) - a full-featured deep agent framework with planning, subagents, and skills system.
+<p align="center">
+  <b>Console Toolset</b> — ls, read, write, edit, grep, execute
+  &nbsp;&bull;&nbsp;
+  <b>Docker Sandbox</b> — isolated code execution
+  &nbsp;&bull;&nbsp;
+  <b>Permission System</b> — fine-grained access control
+</p>
 
-> **Need task planning?** Check out [pydantic-ai-todo](https://github.com/vstorm-co/pydantic-ai-todo) - standalone task planning toolset for any pydantic-ai agent.
+---
 
-## Documentation
+**File Storage & Sandbox Backends** provides everything your [Pydantic AI](https://ai.pydantic.dev/) agent needs to work with files and execute code safely. Choose from in-memory, local filesystem, or Docker-isolated backends.
 
-**[Full Documentation](https://vstorm-co.github.io/pydantic-ai-backend/)** - Installation, concepts, examples, and API reference.
+> **Full framework?** Check out [Pydantic Deep Agents](https://github.com/vstorm-co/pydantic-deepagents) — complete agent framework with planning, filesystem, subagents, and skills.
 
-## Architecture
+## Use Cases
 
-![Architecture](assets/architecture.png)
+| What You Want to Build | How This Library Helps |
+|------------------------|------------------------|
+| **AI Coding Assistant** | Console toolset with file ops + code execution |
+| **Multi-User Web App** | Docker sandboxes with session isolation |
+| **Code Review Bot** | Read-only backend with grep/glob search |
+| **Secure Execution** | Permission system blocks dangerous operations |
+| **Testing/CI** | In-memory StateBackend for fast, isolated tests |
 
 ## Installation
 
 ```bash
-# Core library
 pip install pydantic-ai-backend
+```
 
-# With console toolset (requires pydantic-ai)
+Or with uv:
+
+```bash
+uv add pydantic-ai-backend
+```
+
+Optional extras:
+
+```bash
+# Console toolset (requires pydantic-ai)
 pip install pydantic-ai-backend[console]
 
-# With Docker sandbox support
+# Docker sandbox support
 pip install pydantic-ai-backend[docker]
 
 # Everything
@@ -36,10 +62,6 @@ pip install pydantic-ai-backend[console,docker]
 ```
 
 ## Quick Start
-
-### Console Toolset with pydantic-ai
-
-The easiest way to add file operations to your agent:
 
 ```python
 from dataclasses import dataclass
@@ -50,245 +72,105 @@ from pydantic_ai_backends import LocalBackend, create_console_toolset
 class Deps:
     backend: LocalBackend
 
-# Create agent with console tools
 agent = Agent(
     "openai:gpt-4o",
     deps_type=Deps,
     toolsets=[create_console_toolset()],
-    system_prompt="You are a coding assistant. Use the tools to read, write, and execute code.",
 )
 
-# Run agent
 backend = LocalBackend(root_dir="./workspace")
 result = agent.run_sync(
-    "Create a Python script that calculates fibonacci numbers and run it",
+    "Create a Python script that calculates fibonacci and run it",
     deps=Deps(backend=backend),
 )
 print(result.output)
 ```
 
-### Docker Sandbox for Safe Execution
+**That's it.** Your agent can now:
 
-For untrusted code or multi-user applications:
+- List files and directories (`ls`)
+- Read and write files (`read_file`, `write_file`)
+- Edit files with string replacement (`edit_file`)
+- Search with glob patterns and regex (`glob`, `grep`)
+- Execute shell commands (`execute`)
+
+## Available Backends
+
+| Backend | Storage | Execution | Use Case |
+|---------|---------|-----------|----------|
+| `StateBackend` | In-memory | No | Testing, ephemeral sessions |
+| `LocalBackend` | Filesystem | Yes | Local development, CLI tools |
+| `DockerSandbox` | Container | Yes | Multi-user, untrusted code |
+| `CompositeBackend` | Routed | Varies | Complex multi-source setups |
+
+### In-Memory (StateBackend)
 
 ```python
-from dataclasses import dataclass
-from pydantic_ai import Agent
-from pydantic_ai_backends import DockerSandbox, create_console_toolset
+from pydantic_ai_backends import StateBackend
 
-@dataclass
-class Deps:
-    backend: DockerSandbox
+backend = StateBackend()
+# Files stored in memory, perfect for tests
+```
 
-# Create isolated sandbox
+### Local Filesystem (LocalBackend)
+
+```python
+from pydantic_ai_backends import LocalBackend
+
+backend = LocalBackend(
+    root_dir="/workspace",
+    allowed_directories=["/workspace", "/shared"],
+    enable_execute=True,
+)
+```
+
+### Docker Sandbox (DockerSandbox)
+
+```python
+from pydantic_ai_backends import DockerSandbox
+
 sandbox = DockerSandbox(runtime="python-datascience")
 sandbox.start()
-
-# Create agent
-agent = Agent(
-    "openai:gpt-4o",
-    deps_type=Deps,
-    toolsets=[create_console_toolset()],
-    system_prompt="You are a data analysis assistant.",
-)
-
-result = agent.run_sync(
-    "Write a script that generates random data and plots a histogram",
-    deps=Deps(backend=sandbox),
-)
-
+# Fully isolated container environment
 sandbox.stop()
 ```
 
-### In-Memory Backend for Testing
+## Console Toolset
 
-Perfect for unit tests and ephemeral sessions:
-
-```python
-from dataclasses import dataclass
-from pydantic_ai import Agent
-from pydantic_ai_backends import StateBackend, create_console_toolset
-
-@dataclass
-class Deps:
-    backend: StateBackend
-
-# In-memory storage - no files on disk
-backend = StateBackend()
-
-agent = Agent(
-    "openai:gpt-4o",
-    deps_type=Deps,
-    toolsets=[create_console_toolset(include_execute=False)],  # No shell in StateBackend
-)
-
-result = agent.run_sync(
-    "Create a config.json file with database settings",
-    deps=Deps(backend=backend),
-)
-
-# Access files programmatically
-print(backend.files)  # {'/config.json': {...}}
-```
-
-### Multi-User Web Application
-
-Session manager for web apps with isolated user environments:
-
-```python
-from dataclasses import dataclass
-from fastapi import FastAPI
-from pydantic_ai import Agent
-from pydantic_ai_backends import SessionManager, DockerSandbox, create_console_toolset
-
-app = FastAPI()
-
-# Session manager with persistent storage
-manager = SessionManager(
-    default_runtime="python-datascience",
-    workspace_root="/app/user_workspaces",  # Files persist here
-)
-
-@dataclass
-class Deps:
-    backend: DockerSandbox
-
-agent = Agent(
-    "openai:gpt-4o",
-    deps_type=Deps,
-    toolsets=[create_console_toolset()],
-)
-
-@app.post("/run/{user_id}")
-async def run_code(user_id: str, prompt: str):
-    # Each user gets their own isolated sandbox
-    sandbox = await manager.get_or_create(user_id)
-
-    result = await agent.run(prompt, deps=Deps(backend=sandbox))
-    return {"output": result.output}
-
-@app.on_event("shutdown")
-async def shutdown():
-    await manager.shutdown()
-```
-
-### Composite Backend for Complex Routing
-
-Route different paths to different backends:
-
-```python
-from dataclasses import dataclass
-from pydantic_ai import Agent
-from pydantic_ai_backends import (
-    CompositeBackend,
-    LocalBackend,
-    StateBackend,
-    create_console_toolset,
-)
-
-@dataclass
-class Deps:
-    backend: CompositeBackend
-
-# Different backends for different purposes
-backend = CompositeBackend(
-    default=StateBackend(),  # Temp files in memory
-    routes={
-        "/project/": LocalBackend("/home/user/myproject"),
-        "/data/": LocalBackend("/shared/datasets", enable_execute=False),
-    },
-)
-
-agent = Agent(
-    "openai:gpt-4o",
-    deps_type=Deps,
-    toolsets=[create_console_toolset()],
-)
-
-result = agent.run_sync(
-    "Read the CSV from /data/sales.csv, analyze it, and save results to /project/report.md",
-    deps=Deps(backend=backend),
-)
-```
-
-## Console Toolset Configuration
+Ready-to-use tools for pydantic-ai agents:
 
 ```python
 from pydantic_ai_backends import create_console_toolset
 
-# Default: all tools, execute requires approval
+# All tools enabled
 toolset = create_console_toolset()
 
 # Without shell execution
 toolset = create_console_toolset(include_execute=False)
 
-# Require approval for write operations
+# With approval requirements
 toolset = create_console_toolset(
     require_write_approval=True,
     require_execute_approval=True,
 )
-
-# Custom toolset ID
-toolset = create_console_toolset(id="file-tools")
-
-# Include hidden files by default when using grep
-toolset = create_console_toolset(default_ignore_hidden=False)
 ```
 
 **Available tools:** `ls`, `read_file`, `write_file`, `edit_file`, `glob`, `grep`, `execute`
 
 ## Permission System
 
-Fine-grained access control for file operations and shell commands:
+Fine-grained access control:
 
 ```python
-from pydantic_ai_backends import LocalBackend, create_console_toolset
-from pydantic_ai_backends.permissions import (
-    DEFAULT_RULESET,
-    READONLY_RULESET,
-    PermissionRuleset,
-    OperationPermissions,
-    PermissionRule,
-)
+from pydantic_ai_backends import LocalBackend
+from pydantic_ai_backends.permissions import DEFAULT_RULESET, READONLY_RULESET
 
-# Use pre-configured presets
+# Safe defaults (allow reads, ask for writes)
 backend = LocalBackend(root_dir="/workspace", permissions=DEFAULT_RULESET)
 
 # Read-only mode
 backend = LocalBackend(root_dir="/workspace", permissions=READONLY_RULESET)
-
-# Custom rules
-custom_permissions = PermissionRuleset(
-    default="ask",
-    read=OperationPermissions(
-        default="allow",
-        rules=[
-            PermissionRule(pattern="**/.env*", action="deny"),
-            PermissionRule(pattern="**/secrets/**", action="deny"),
-        ],
-    ),
-    write=OperationPermissions(
-        default="ask",
-        rules=[
-            PermissionRule(pattern="**/*.py", action="allow"),
-        ],
-    ),
-    execute=OperationPermissions(
-        default="deny",
-        rules=[
-            PermissionRule(pattern="git *", action="allow"),
-            PermissionRule(pattern="python *", action="allow"),
-        ],
-    ),
-)
-
-backend = LocalBackend(root_dir="/workspace", permissions=custom_permissions)
-
-# With console toolset
-toolset = create_console_toolset(permissions=DEFAULT_RULESET)
 ```
-
-**Available presets:**
 
 | Preset | Description |
 |--------|-------------|
@@ -297,22 +179,17 @@ toolset = create_console_toolset(permissions=DEFAULT_RULESET)
 | `READONLY_RULESET` | Allow reads only, deny all writes and executes |
 | `STRICT_RULESET` | Everything requires approval |
 
-## Built-in Docker Runtimes
+## Docker Runtimes
 
-```python
-from pydantic_ai_backends import DockerSandbox
-
-# Pre-configured environments
-sandbox = DockerSandbox(runtime="python-datascience")
-```
+Pre-configured environments:
 
 | Runtime | Base Image | Packages |
 |---------|------------|----------|
 | `python-minimal` | python:3.12-slim | (none) |
-| `python-datascience` | python:3.12-slim | pandas, numpy, matplotlib, scikit-learn, seaborn |
+| `python-datascience` | python:3.12-slim | pandas, numpy, matplotlib, scikit-learn |
 | `python-web` | python:3.12-slim | fastapi, uvicorn, sqlalchemy, httpx |
 | `node-minimal` | node:20-slim | (none) |
-| `node-react` | node:20-slim | typescript, vite, react, react-dom |
+| `node-react` | node:20-slim | typescript, vite, react |
 
 Custom runtime:
 
@@ -322,63 +199,61 @@ from pydantic_ai_backends import DockerSandbox, RuntimeConfig
 runtime = RuntimeConfig(
     name="ml-env",
     base_image="python:3.12-slim",
-    packages=["torch", "transformers", "accelerate"],
-    env_vars={"PYTHONUNBUFFERED": "1"},
+    packages=["torch", "transformers"],
 )
-
 sandbox = DockerSandbox(runtime=runtime)
 ```
 
-## Backend Protocol
+## Session Manager
 
-All backends implement `BackendProtocol`:
-
-```python
-class BackendProtocol(Protocol):
-    def ls_info(self, path: str) -> list[FileInfo]: ...
-    def read(self, path: str, offset: int = 0, limit: int = 2000) -> str: ...
-    def write(self, path: str, content: str | bytes) -> WriteResult: ...
-    def edit(self, path: str, old: str, new: str, replace_all: bool = False) -> EditResult: ...
-    def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]: ...
-    def grep_raw(
-        self,
-        pattern: str,
-        path: str | None = None,
-        glob: str | None = None,
-        ignore_hidden: bool = True,
-    ) -> list[GrepMatch] | str: ...
-```
-
-`LocalBackend` and `DockerSandbox` also provide shell execution:
+Multi-user web applications:
 
 ```python
-def execute(self, command: str, timeout: int | None = None) -> ExecuteResponse: ...
+from pydantic_ai_backends import SessionManager
+
+manager = SessionManager(
+    default_runtime="python-datascience",
+    workspace_root="/app/workspaces",
+)
+
+# Each user gets isolated sandbox
+sandbox = await manager.get_or_create("user-123")
 ```
 
-## Examples
+## Why Choose This Library?
 
-Full working examples in [`examples/`](examples/):
+| Feature | Description |
+|---------|-------------|
+| **Multiple Backends** | In-memory, filesystem, Docker — same interface |
+| **Console Toolset** | Ready-to-use tools for pydantic-ai agents |
+| **Permission System** | Pattern-based access control with presets |
+| **Docker Isolation** | Safe execution of untrusted code |
+| **Session Management** | Multi-user support with workspace persistence |
+| **Pre-built Runtimes** | Python and Node.js environments ready to go |
 
-| Example | Description | Backend |
-|---------|-------------|---------|
-| [**local_cli**](examples/local_cli/) | CLI coding assistant | `LocalBackend` |
-| [**web_production**](examples/web_production/) | Multi-user web app with UI | `DockerSandbox` + `SessionManager` |
+## Related Projects
 
-## Development
+| Package | Description |
+|---------|-------------|
+| [Pydantic Deep Agents](https://github.com/vstorm-co/pydantic-deepagents) | Full agent framework (uses this library) |
+| [pydantic-ai-todo](https://github.com/vstorm-co/pydantic-ai-todo) | Task planning toolset |
+| [subagents-pydantic-ai](https://github.com/vstorm-co/subagents-pydantic-ai) | Multi-agent orchestration |
+| [summarization-pydantic-ai](https://github.com/vstorm-co/summarization-pydantic-ai) | Context management |
+| [pydantic-ai](https://github.com/pydantic/pydantic-ai) | The foundation — agent framework by Pydantic |
+
+## Contributing
 
 ```bash
 git clone https://github.com/vstorm-co/pydantic-ai-backend.git
 cd pydantic-ai-backend
 make install
-make test
+make test  # 100% coverage required
 ```
-
-## Related Projects
-
-- **[pydantic-ai](https://github.com/pydantic/pydantic-ai)** - Agent framework by Pydantic
-- **[pydantic-deep](https://github.com/vstorm-co/pydantic-deepagents)** - Full agent framework (uses this library)
-- **[pydantic-ai-todo](https://github.com/vstorm-co/pydantic-ai-todo)** - Task planning toolset
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT — see [LICENSE](LICENSE)
+
+<p align="center">
+  <sub>Built with ❤️ by <a href="https://github.com/vstorm-co">vstorm-co</a></sub>
+</p>
