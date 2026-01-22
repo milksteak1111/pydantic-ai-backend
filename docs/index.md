@@ -1,43 +1,29 @@
-# pydantic-ai-backend
+# File Storage & Sandbox Backends for Pydantic AI
 
-<p style="font-size: 1.3em; color: #888; margin-top: -0.5em;">
-File storage and sandbox backends for pydantic-ai agents
-</p>
-
-[![PyPI version](https://img.shields.io/pypi/v/pydantic-ai-backend.svg)](https://pypi.org/project/pydantic-ai-backend/)
-[![CI](https://github.com/vstorm-co/pydantic-ai-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/vstorm-co/pydantic-ai-backend/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/vstorm-co/pydantic-ai-backend/badge.svg?branch=main)](https://coveralls.io/github/vstorm-co/pydantic-ai-backend?branch=main)
-[![python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
-[![license](https://img.shields.io/badge/license-MIT-green)](https://opensource.org/licenses/MIT)
+Console Toolset, Docker Sandbox, and Permission System for [Pydantic AI](https://ai.pydantic.dev/) agents.
 
 ---
 
 **pydantic-ai-backend** provides file storage, sandbox execution, and a ready-to-use console toolset for [pydantic-ai](https://ai.pydantic.dev/) agents. Give your AI agents the ability to read, write, and execute code safely.
 
-## Why use pydantic-ai-backend?
+<div class="grid cards" markdown>
 
-When building [pydantic-ai](https://ai.pydantic.dev/) agents that work with files and execute code, you need storage, isolation, and security. **pydantic-ai-backend** provides:
+- :material-console: **Console Toolset**
 
-<div class="feature-grid">
-<div class="feature-card">
-<h3>🔌 Plug & Play Toolset</h3>
-<p>Ready-to-use pydantic-ai toolset with ls, read, write, edit, glob, grep, execute. Just add to your agent.</p>
-</div>
+    Ready-to-use tools: ls, read, write, edit, glob, grep, execute
 
-<div class="feature-card">
-<h3>🐳 Docker Isolation</h3>
-<p>Execute code safely in Docker containers. Pre-configured runtimes for Python, Node.js, and more.</p>
-</div>
+- :material-docker: **Docker Isolation**
 
-<div class="feature-card">
-<h3>📁 Multiple Backends</h3>
-<p>In-memory (testing), local filesystem (CLI), Docker (production). Same interface, swap backends.</p>
-</div>
+    Execute code safely in isolated containers
 
-<div class="feature-card">
-<h3>👥 Multi-User Ready</h3>
-<p>SessionManager for multi-user apps. Each user gets isolated storage and execution environment.</p>
-</div>
+- :material-folder-multiple: **Multiple Backends**
+
+    In-memory, filesystem, Docker — same interface
+
+- :material-shield-lock: **Permission System**
+
+    Fine-grained access control with presets
+
 </div>
 
 ## Quick Start
@@ -53,17 +39,15 @@ from pydantic_ai_backends import LocalBackend, create_console_toolset
 class Deps:
     backend: LocalBackend
 
-# Create backend and toolset
+agent = Agent(
+    "openai:gpt-4o",
+    deps_type=Deps,
+    toolsets=[create_console_toolset()],
+)
+
 backend = LocalBackend(root_dir="/workspace")
-toolset = create_console_toolset()
-
-# Add toolset to your pydantic-ai agent
-agent = Agent("openai:gpt-4o", deps_type=Deps)
-agent = agent.with_toolset(toolset)
-
-# Your agent can now read, write, and execute code!
 result = agent.run_sync(
-    "Create a fibonacci.py script and run it to show first 10 numbers",
+    "Create a fibonacci.py script and run it",
     deps=Deps(backend=backend),
 )
 print(result.output)
@@ -71,14 +55,13 @@ print(result.output)
 
 ## Choose Your Backend
 
-Same toolset, different backends - swap based on your use case:
+Same toolset, different backends — swap based on your use case:
 
 === "Local Development"
 
     ```python
     from pydantic_ai_backends import LocalBackend
 
-    # For CLI tools and local development
     backend = LocalBackend(root_dir="./workspace")
     ```
 
@@ -87,8 +70,7 @@ Same toolset, different backends - swap based on your use case:
     ```python
     from pydantic_ai_backends import StateBackend
 
-    # In-memory, no side effects
-    backend = StateBackend()
+    backend = StateBackend()  # In-memory, no side effects
     ```
 
 === "Production (Docker)"
@@ -96,7 +78,6 @@ Same toolset, different backends - swap based on your use case:
     ```python
     from pydantic_ai_backends import DockerSandbox
 
-    # Isolated execution in Docker
     backend = DockerSandbox(runtime="python-datascience")
     ```
 
@@ -105,14 +86,11 @@ Same toolset, different backends - swap based on your use case:
     ```python
     from pydantic_ai_backends import SessionManager
 
-    # Each user gets isolated sandbox
     manager = SessionManager(workspace_root="/app/workspaces")
     backend = await manager.get_or_create(user_id="alice")
     ```
 
 ## Available Tools
-
-Your pydantic-ai agent gets these tools automatically:
 
 | Tool | Description |
 |------|-------------|
@@ -121,7 +99,7 @@ Your pydantic-ai agent gets these tools automatically:
 | `write_file` | Create or overwrite a file |
 | `edit_file` | Replace strings in a file |
 | `glob` | Find files matching a pattern |
-| `grep` | Search for patterns in files (set `default_ignore_hidden=False` to include dotfiles) |
+| `grep` | Search for patterns in files |
 | `execute` | Run shell commands (optional) |
 
 ## Backend Comparison
@@ -137,34 +115,32 @@ Your pydantic-ai agent gets these tools automatically:
 
 ## Related Projects
 
-- **[pydantic-ai](https://github.com/pydantic/pydantic-ai)** - The foundation: Agent framework by Pydantic
-- **[pydantic-deep](https://github.com/vstorm-co/pydantic-deep)** - Full deep agent framework (uses this library)
-- **[pydantic-ai-todo](https://github.com/vstorm-co/pydantic-ai-todo)** - Task planning toolset
+| Package | Description |
+|---------|-------------|
+| [Pydantic Deep Agents](https://github.com/vstorm-co/pydantic-deepagents) | Full agent framework (uses this library) |
+| [pydantic-ai-todo](https://github.com/vstorm-co/pydantic-ai-todo) | Task planning toolset |
+| [subagents-pydantic-ai](https://github.com/vstorm-co/subagents-pydantic-ai) | Multi-agent orchestration |
+| [summarization-pydantic-ai](https://github.com/vstorm-co/summarization-pydantic-ai) | Context management |
+| [pydantic-ai](https://github.com/pydantic/pydantic-ai) | The foundation — agent framework by Pydantic |
 
 ## Next Steps
 
-<div class="feature-grid">
-<div class="feature-card">
-<h3>📖 Installation</h3>
-<p>Get started in minutes.</p>
-<a href="installation/">Installation Guide →</a>
-</div>
+<div class="grid cards" markdown>
 
-<div class="feature-card">
-<h3>🎓 Core Concepts</h3>
-<p>Learn about backends and toolsets.</p>
-<a href="concepts/">Core Concepts →</a>
-</div>
+- :material-download: **[Installation](installation.md)**
 
-<div class="feature-card">
-<h3>📝 Examples</h3>
-<p>See real-world examples.</p>
-<a href="examples/">Examples →</a>
-</div>
+    Get started with pip or uv
 
-<div class="feature-card">
-<h3>📚 API Reference</h3>
-<p>Complete API documentation.</p>
-<a href="api/">API Reference →</a>
-</div>
+- :material-book-open-variant: **[Concepts](concepts/index.md)**
+
+    Learn about backends and toolsets
+
+- :material-code-tags: **[Examples](examples/index.md)**
+
+    See real-world usage patterns
+
+- :material-api: **[API Reference](api/index.md)**
+
+    Full API documentation
+
 </div>
