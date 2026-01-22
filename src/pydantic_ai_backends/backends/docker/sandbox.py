@@ -88,6 +88,23 @@ class BaseSandbox(ABC):
         """
         ...
 
+    @abstractmethod
+    def edit(  # pragma: no cover
+        self, path: str, old_string: str, new_string: str, replace_all: bool = False
+    ) -> EditResult:
+        """Edit a file by replacing strings.
+
+        Args:
+            path: File path to edit.
+            old_string: String to find and replace.
+            new_string: Replacement string.
+            replace_all: If True, replace all occurrences. Otherwise, replace only first.
+
+        Returns:
+            EditResult with path, error, or occurrence count.
+        """
+        ...
+
     def ls_info(self, path: str) -> list[FileInfo]:  # pragma: no cover
         """List files using ls command."""
         path = shlex.quote(path)
@@ -170,47 +187,6 @@ class BaseSandbox(ABC):
             return WriteResult(error=result.output)
 
         return WriteResult(path=path)
-
-    def edit(  # pragma: no cover
-        self, path: str, old_string: str, new_string: str, replace_all: bool = False
-    ) -> EditResult:
-        """Edit file using sed."""
-        # First check if file exists and count occurrences
-        path = shlex.quote(path)
-        check = self.execute(f"grep -c '{old_string}' {path}")
-
-        if check.exit_code != 0:
-            if "No such file" in check.output:
-                return EditResult(error=f"File '{path}' not found")
-            return EditResult(error=f"String '{old_string}' not found in file")
-
-        try:
-            occurrences = int(check.output.strip())
-        except ValueError:
-            occurrences = 0
-
-        if occurrences == 0:
-            return EditResult(error=f"String '{old_string}' not found in file")
-
-        if occurrences > 1 and not replace_all:
-            return EditResult(
-                error=f"String '{old_string}' found {occurrences} times. "
-                "Use replace_all=True to replace all, or provide more context."
-            )
-
-        # Escape special sed characters
-        old_escaped = old_string.replace("/", "\\/").replace("&", "\\&")
-        new_escaped = new_string.replace("/", "\\/").replace("&", "\\&")
-
-        if replace_all:
-            result = self.execute(f"sed -i 's/{old_escaped}/{new_escaped}/g' {path}")
-        else:
-            result = self.execute(f"sed -i '0,/{old_escaped}/s//{new_escaped}/' {path}")
-
-        if result.exit_code != 0:
-            return EditResult(error=result.output)
-
-        return EditResult(path=path, occurrences=occurrences if replace_all else 1)
 
     def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:  # pragma: no cover
         """Find files using find command."""
