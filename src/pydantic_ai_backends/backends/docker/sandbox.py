@@ -88,6 +88,23 @@ class BaseSandbox(ABC):
         """
         ...
 
+    @abstractmethod
+    def edit(  # pragma: no cover
+        self, path: str, old_string: str, new_string: str, replace_all: bool = False
+    ) -> EditResult:
+        """Edit a file by replacing strings.
+
+        Args:
+            path: File path to edit.
+            old_string: String to find and replace.
+            new_string: Replacement string.
+            replace_all: If True, replace all occurrences. Otherwise, replace only first.
+
+        Returns:
+            EditResult with path, error, or occurrence count.
+        """
+        ...
+
     def ls_info(self, path: str) -> list[FileInfo]:  # pragma: no cover
         """List files using ls command."""
         path = shlex.quote(path)
@@ -170,47 +187,6 @@ class BaseSandbox(ABC):
             return WriteResult(error=result.output)
 
         return WriteResult(path=path)
-
-    def edit(  # pragma: no cover
-        self, path: str, old_string: str, new_string: str, replace_all: bool = False
-    ) -> EditResult:
-        """Edit file using sed."""
-        # First check if file exists and count occurrences
-        path = shlex.quote(path)
-        check = self.execute(f"grep -c '{old_string}' {path}")
-
-        if check.exit_code != 0:
-            if "No such file" in check.output:
-                return EditResult(error=f"File '{path}' not found")
-            return EditResult(error=f"String '{old_string}' not found in file")
-
-        try:
-            occurrences = int(check.output.strip())
-        except ValueError:
-            occurrences = 0
-
-        if occurrences == 0:
-            return EditResult(error=f"String '{old_string}' not found in file")
-
-        if occurrences > 1 and not replace_all:
-            return EditResult(
-                error=f"String '{old_string}' found {occurrences} times. "
-                "Use replace_all=True to replace all, or provide more context."
-            )
-
-        # Escape special sed characters
-        old_escaped = old_string.replace("/", "\\/").replace("&", "\\&")
-        new_escaped = new_string.replace("/", "\\/").replace("&", "\\&")
-
-        if replace_all:
-            result = self.execute(f"sed -i 's/{old_escaped}/{new_escaped}/g' {path}")
-        else:
-            result = self.execute(f"sed -i '0,/{old_escaped}/s//{new_escaped}/' {path}")
-
-        if result.exit_code != 0:
-            return EditResult(error=result.output)
-
-        return EditResult(path=path, occurrences=occurrences if replace_all else 1)
 
     def glob_info(self, pattern: str, path: str = "/") -> list[FileInfo]:  # pragma: no cover
         """Find files using find command."""
@@ -756,6 +732,62 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         text = text.replace("\f", "\n")
 
         return text.strip()
+
+    def edit(
+        self, path: str, old_string: str, new_string: str, replace_all: bool = False
+    ) -> EditResult:
+        """Edit file using Python string operations instead of sed.
+
+        This method reads the entire file, performs string replacement in Python,
+        and writes it back. This approach handles multiline strings naturally
+        without shell escaping issues.
+
+        Args:
+            path: Path to the file in the container.
+            old_string: String to find and replace.
+            new_string: Replacement string.
+            replace_all: If True, replace all occurrences. If False, only replace first.
+
+        Returns:
+            EditResult with path and occurrence count on success, or error message.
+        """
+        try:
+            # Read the file content
+            file_bytes = self._read_bytes(path)
+
+            # Check for error messages from _read_bytes
+            if file_bytes.startswith(b"[Error:"):
+                error_msg = file_bytes.decode("utf-8", errors="replace")
+                return EditResult(error=error_msg)
+
+            # Decode to string using the same logic as read()
+            file_ext = Path(path).suffix.lower().lstrip(".")
+            content = self._convert_bytes_to_text(file_ext, file_bytes)
+
+            # Count occurrences
+            occurrences = content.count(old_string)
+
+            if occurrences == 0:
+                return EditResult(error="String not found in file")
+
+            if occurrences > 1 and not replace_all:
+                return EditResult(
+                    error=f"String found {occurrences} times. "
+                    "Use replace_all=True to replace all, or provide more context."
+                )
+
+            new_content = content.replace(old_string, new_string)
+
+            # Write back the modified content
+            write_result = self.write(path, new_content)
+
+            if write_result.error:
+                return EditResult(error=write_result.error)
+
+            return EditResult(path=path, occurrences=occurrences)
+
+        except Exception as e:
+            return EditResult(error=f"Failed to edit file: {e}")
 
     def write(self, path: str, content: str | bytes) -> WriteResult:
         """Write file to container using Docker put_archive API.
