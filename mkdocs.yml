@@ -80,6 +80,7 @@ nav:
     - Core Concepts:
       - concepts/index.md
       - concepts/backends.md
+      - concepts/permissions.md
       - concepts/docker.md
       - concepts/console-toolset.md
   - Examples:
@@ -91,6 +92,7 @@ nav:
   - API Reference:
     - api/index.md
     - api/backends.md
+    - api/permissions.md
     - api/docker.md
     - api/toolsets.md
     - api/types.md

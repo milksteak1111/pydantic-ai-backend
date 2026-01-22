@@ -57,6 +57,48 @@ backend = LocalBackend(
 toolset = create_console_toolset(include_execute=False)
 ```
 
+### Permission System
+
+For fine-grained access control, use the permission system:
+
+```python
+from pydantic_ai_backends import LocalBackend
+from pydantic_ai_backends.permissions import (
+    DEFAULT_RULESET,
+    READONLY_RULESET,
+    PermissionRuleset,
+    OperationPermissions,
+    PermissionRule,
+)
+
+# Use pre-configured presets
+backend = LocalBackend(root_dir="/workspace", permissions=DEFAULT_RULESET)
+
+# Read-only permissions
+backend = LocalBackend(root_dir="/workspace", permissions=READONLY_RULESET)
+
+# Custom permissions
+custom = PermissionRuleset(
+    read=OperationPermissions(
+        default="allow",
+        rules=[
+            PermissionRule(pattern="**/.env*", action="deny"),
+        ],
+    ),
+    write=OperationPermissions(default="ask"),
+    execute=OperationPermissions(
+        default="deny",
+        rules=[
+            PermissionRule(pattern="git *", action="allow"),
+            PermissionRule(pattern="python *", action="allow"),
+        ],
+    ),
+)
+backend = LocalBackend(root_dir="/workspace", permissions=custom)
+```
+
+See [Permissions](permissions.md) for full documentation.
+
 ### Features
 
 - ✅ Python-native file operations (cross-platform)
@@ -208,6 +250,7 @@ backend.read("C:\\Windows\\...")   # Windows paths
 
 ## Next Steps
 
+- [Permissions](permissions.md) - Fine-grained access control
 - [Docker Sandbox](docker.md) - Isolated execution
 - [Console Toolset](console-toolset.md) - Ready-to-use tools
 - [API Reference](../api/backends.md) - Complete API

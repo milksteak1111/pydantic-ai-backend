@@ -6,7 +6,9 @@ import re
 import shutil
 import subprocess
 import uuid
+from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import TYPE_CHECKING, Literal
 
 from pydantic_ai_backends.types import (
     EditResult,
@@ -15,6 +17,19 @@ from pydantic_ai_backends.types import (
     GrepMatch,
     WriteResult,
 )
+
+if TYPE_CHECKING:
+    from pydantic_ai_backends.permissions.checker import PermissionChecker
+    from pydantic_ai_backends.permissions.types import (
+        PermissionOperation,
+        PermissionRuleset,
+    )
+
+# Callback type for asking user permission
+AskCallback = Callable[["PermissionOperation", str, str], Awaitable[bool]]
+
+# Fallback behavior when ask_callback is not provided
+AskFallback = Literal["deny", "error"]
 
 
 class LocalBackend:
@@ -47,6 +62,9 @@ class LocalBackend:
         allowed_directories: list[str] | None = None,
         enable_execute: bool = True,
         sandbox_id: str | None = None,
+        permissions: PermissionRuleset | None = None,
+        ask_callback: AskCallback | None = None,
+        ask_fallback: AskFallback = "error",
     ):
         """Initialize the backend.
 
@@ -58,9 +76,30 @@ class LocalBackend:
                 Paths are resolved to absolute paths.
             enable_execute: Whether shell execution is enabled. Default True.
             sandbox_id: Unique identifier for this backend instance.
+            permissions: Optional permission ruleset for fine-grained access control.
+                If provided, operations are checked against this ruleset after
+                the allowed_directories check passes.
+            ask_callback: Async callback for "ask" permission actions. Receives
+                (operation, target, reason) and returns True to allow.
+            ask_fallback: What to do when ask_callback is None but needed.
+                "deny" denies the operation, "error" raises PermissionError.
         """
         self._id = sandbox_id or str(uuid.uuid4())
         self._enable_execute = enable_execute
+        self._permissions = permissions
+        self._ask_callback = ask_callback
+        self._ask_fallback = ask_fallback
+        self._permission_checker: PermissionChecker | None = None
+
+        # Initialize permission checker if ruleset provided
+        if permissions is not None:
+            from pydantic_ai_backends.permissions.checker import PermissionChecker
+
+            self._permission_checker = PermissionChecker(
+                ruleset=permissions,
+                ask_callback=ask_callback,
+                ask_fallback=ask_fallback,
+            )
 
         # Resolve allowed directories
         self._allowed_directories: list[Path] | None = None
@@ -99,6 +138,43 @@ class LocalBackend:
     def execute_enabled(self) -> bool:
         """Whether shell execution is enabled."""
         return self._enable_execute
+
+    @property
+    def permissions(self) -> PermissionRuleset | None:
+        """The permission ruleset for this backend, if any."""
+        return self._permissions
+
+    @property
+    def permission_checker(self) -> PermissionChecker | None:
+        """The permission checker for this backend, if any."""
+        return self._permission_checker
+
+    def _check_permission_sync(self, operation: PermissionOperation, target: str) -> str | None:
+        """Check permission synchronously.
+
+        Returns None if allowed, or an error message if denied.
+        For "ask" actions, returns an error since this is sync.
+        """
+        if self._permission_checker is None:
+            return None
+
+        from pydantic_ai_backends.permissions.checker import (
+            PermissionError,
+        )
+
+        action = self._permission_checker.check_sync(operation, target)
+        if action == "allow":
+            return None
+        if action == "deny":
+            rule = self._permission_checker._find_matching_rule(operation, target)
+            if rule and rule.description:
+                return f"Permission denied: {rule.description}"
+            return f"Permission denied for {operation} on '{target}'"
+        # action == "ask" - in sync context, we can't ask
+        if self._ask_fallback == "deny":
+            return f"Permission denied for {operation} on '{target}' (approval required)"
+        # ask_fallback == "error"
+        raise PermissionError(operation, target, "Approval required but no callback")
 
     def _validate_path(self, path: str) -> Path:
         """Validate and resolve path within allowed directories.
@@ -196,6 +272,11 @@ class LocalBackend:
         except PermissionError as e:
             return f"Error: {e}"
 
+        # Check permissions
+        perm_error = self._check_permission_sync("read", str(full_path))
+        if perm_error:
+            return f"Error: {perm_error}"
+
         if not full_path.exists():
             return f"Error: File '{path}' not found"
 
@@ -237,6 +318,11 @@ class LocalBackend:
         except PermissionError as e:
             return WriteResult(error=str(e))
 
+        # Check permissions
+        perm_error = self._check_permission_sync("write", str(full_path))
+        if perm_error:
+            return WriteResult(error=perm_error)
+
         try:
             full_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -259,6 +345,11 @@ class LocalBackend:
             full_path = self._validate_path(path)
         except PermissionError as e:  # pragma: no cover
             return EditResult(error=str(e))
+
+        # Check permissions
+        perm_error = self._check_permission_sync("edit", str(full_path))
+        if perm_error:
+            return EditResult(error=perm_error)
 
         if not full_path.exists():
             return EditResult(error=f"File '{path}' not found")
@@ -480,6 +571,15 @@ class LocalBackend:
             raise RuntimeError(
                 "Shell execution is disabled for this backend. "
                 "Initialize with enable_execute=True to enable."
+            )
+
+        # Check permissions
+        perm_error = self._check_permission_sync("execute", command)
+        if perm_error:
+            return ExecuteResponse(
+                output=f"Error: {perm_error}",
+                exit_code=1,
+                truncated=False,
             )
 
         try:
