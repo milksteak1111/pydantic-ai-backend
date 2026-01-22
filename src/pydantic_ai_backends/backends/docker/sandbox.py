@@ -757,6 +757,62 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
         return text.strip()
 
+    def edit(
+        self, path: str, old_string: str, new_string: str, replace_all: bool = False
+    ) -> EditResult:
+        """Edit file using Python string operations instead of sed.
+
+        This method reads the entire file, performs string replacement in Python,
+        and writes it back. This approach handles multiline strings naturally
+        without shell escaping issues.
+
+        Args:
+            path: Path to the file in the container.
+            old_string: String to find and replace.
+            new_string: Replacement string.
+            replace_all: If True, replace all occurrences. If False, only replace first.
+
+        Returns:
+            EditResult with path and occurrence count on success, or error message.
+        """
+        try:
+            # Read the file content
+            file_bytes = self._read_bytes(path)
+
+            # Check for error messages from _read_bytes
+            if file_bytes.startswith(b"[Error:"):
+                error_msg = file_bytes.decode("utf-8", errors="replace")
+                return EditResult(error=error_msg)
+
+            # Decode to string using the same logic as read()
+            file_ext = Path(path).suffix.lower().lstrip(".")
+            content = self._convert_bytes_to_text(file_ext, file_bytes)
+
+            # Count occurrences
+            occurrences = content.count(old_string)
+
+            if occurrences == 0:
+                return EditResult(error="String not found in file")
+
+            if occurrences > 1 and not replace_all:
+                return EditResult(
+                    error=f"String found {occurrences} times. "
+                    "Use replace_all=True to replace all, or provide more context."
+                )
+
+            new_content = content.replace(old_string, new_string)
+
+            # Write back the modified content
+            write_result = self.write(path, new_content)
+
+            if write_result.error:
+                return EditResult(error=write_result.error)
+
+            return EditResult(path=path, occurrences=occurrences)
+
+        except Exception as e:
+            return EditResult(error=f"Failed to edit file: {e}")
+
     def write(self, path: str, content: str | bytes) -> WriteResult:
         """Write file to container using Docker put_archive API.
 
