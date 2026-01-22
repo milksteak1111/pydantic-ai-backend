@@ -85,6 +85,25 @@ finally:
 
 [Learn more about Docker →](docker.md)
 
+## 4. Permissions
+
+Fine-grained access control for file operations and shell commands:
+
+```python
+from pydantic_ai_backends import LocalBackend
+from pydantic_ai_backends.permissions import DEFAULT_RULESET, READONLY_RULESET
+
+# Safe defaults - allow reads, ask for writes/executes
+backend = LocalBackend(root_dir="/workspace", permissions=DEFAULT_RULESET)
+
+# Read-only mode - deny all writes and executes
+backend = LocalBackend(root_dir="/workspace", permissions=READONLY_RULESET)
+```
+
+Available presets: `DEFAULT_RULESET`, `PERMISSIVE_RULESET`, `READONLY_RULESET`, `STRICT_RULESET`
+
+[Learn more about Permissions →](permissions.md)
+
 ## Architecture
 
 ![Architecture](../../assets/architecture.png)
