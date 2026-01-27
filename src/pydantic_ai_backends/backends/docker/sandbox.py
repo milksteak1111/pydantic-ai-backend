@@ -54,6 +54,36 @@ TEXT_EXT: frozenset[str] = frozenset(
     {"txt", "log", "md", "json", "xml", "csv", "yaml", "yml", "toml"}
 )
 
+_COUNTING_ERROR_NAME = "count_and_ignore"
+
+
+class _CountingErrorHandler:
+    """Callable error handler that tracks decode errors for mypy friendliness."""
+
+    def __init__(self) -> None:
+        self.count = 0
+
+    def __call__(self, exception: UnicodeError) -> tuple[str, int]:
+        exc = cast(UnicodeDecodeError, exception)
+        self.count += 1
+        return "", exc.end
+
+    def reset(self) -> None:
+        self.count = 0
+
+
+_counting_error_handler = _CountingErrorHandler()
+
+
+def _register_counting_error_handler() -> None:
+    try:
+        codecs.lookup_error(_COUNTING_ERROR_NAME)
+    except LookupError:
+        codecs.register_error(_COUNTING_ERROR_NAME, _counting_error_handler)
+
+
+_register_counting_error_handler()
+
 
 def _get_chardet() -> Any:  # pragma: no cover
     """Lazy import for chardet."""
@@ -628,9 +658,11 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
     def _convert_bytes_to_text(self, file_ext: str, file_bytes: bytes) -> str:
         # Plain text files with encoding detection
-        if file_ext in (TEXT_EXT | CODE_EXT) or mimetypes.types_map.get(f".{file_ext}").startswith(
-            "text"
-        ):
+        if file_ext in (TEXT_EXT | CODE_EXT):
+            return self._decode_text(file_bytes)
+
+        mime_type = mimetypes.types_map.get(f".{file_ext}")
+        if mime_type and (mime_type.startswith("text") or "json" in mime_type):
             return self._decode_text(file_bytes)
 
         # PDF files
@@ -671,25 +703,15 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         return file_bytes.decode("utf-8", errors="replace")
 
     def _decode_unknown_text(self, file_bytes: bytes) -> str:
-        def count_errors(exception: UnicodeError) -> tuple[str, int]:
-            exception = cast(UnicodeDecodeError, exception)
-            count_errors.count += 1
-            return "", exception.end
-
-        count_errors.count = 0
-        codecs.register_error("count_and_ignore", count_errors)
-
         chardet = _get_chardet()
         # Use chardet to detect encoding with confidence
         detected_encoding = chardet.detect(file_bytes).get("encoding")
         # Fallback to common encodings if detection failed or low confidence
-        encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]
-        if detected_encoding and detected_encoding not in encodings:
-            encodings.insert(0, detected_encoding)
-
+        encodings = {detected_encoding, "utf-8"} if detected_encoding else ["utf-8"]
         for encoding in encodings:
-            text = file_bytes.decode(encoding, errors="count_and_ignore")
-            if count_errors.count < max(len(text) // 100, 2):
+            _counting_error_handler.reset()
+            text = file_bytes.decode(encoding, errors=_COUNTING_ERROR_NAME)
+            if _counting_error_handler.count < max(len(text) // 100, 2):
                 return text
         return "[Binary File]"
 
@@ -897,11 +919,13 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         """Stop and remove the container."""
         import contextlib
 
-        if self._container:
+        container = getattr(self, "_container", None)
+        if container is not None:
             with contextlib.suppress(Exception):
-                self._container.stop()
+                container.stop()
             self._container = None
 
     def __del__(self) -> None:
         """Cleanup container on deletion."""
-        self.stop()
+        if hasattr(self, "_container"):
+            self.stop()

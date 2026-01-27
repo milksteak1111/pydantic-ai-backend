@@ -1,5 +1,7 @@
 """Tests for DockerSandbox initialization (without running Docker)."""
 
+import mimetypes
+
 import pytest
 
 
@@ -238,3 +240,36 @@ class TestDockerSandboxEdit:
         assert "qux" in content
         assert "foo" not in content
         assert content.count("qux") == 3
+
+
+class TestDockerSandboxReadTextHandling:
+    """Unit tests for the sandbox read helpers that don't require Docker."""
+
+    def test_convert_bytes_to_text_uses_mimetype_detection(self, monkeypatch):
+        """Ensure files detected as text via mimetypes are decoded as text."""
+        from pydantic_ai_backends import DockerSandbox
+
+        sandbox = DockerSandbox.__new__(DockerSandbox)
+
+        decoded_value = "decoded via mimetype"
+
+        def fake_decode(self, file_bytes):
+            return decoded_value
+
+        monkeypatch.setitem(mimetypes.types_map, ".cfg", "text/x-config")
+        monkeypatch.setattr(DockerSandbox, "_decode_text", fake_decode, raising=False)
+
+        result = sandbox._convert_bytes_to_text("cfg", b"whatever")
+        assert result == decoded_value
+
+    def test_decode_unknown_text_binary_fallback(self):
+        """When no encoding decodes cleanly, binary marker should be returned."""
+        from pydantic_ai_backends import DockerSandbox
+
+        sandbox = DockerSandbox.__new__(DockerSandbox)
+
+        # Crafted bytes with many decoding errors in common encodings
+        raw_bytes = bytearray(range(129, 255)) * 4  # lots of binary data
+
+        result = sandbox._decode_unknown_text(raw_bytes)
+        assert result == "[Binary File]"
