@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import codecs
 import hashlib
 import io
+import mimetypes
 import re
 import shlex
 import tarfile
@@ -12,7 +14,7 @@ import uuid
 from abc import ABC, abstractmethod
 from io import BytesIO
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic_ai_backends.types import (
     EditResult,
@@ -25,6 +27,32 @@ from pydantic_ai_backends.types import (
 
 if TYPE_CHECKING:
     pass
+
+CODE_EXT: frozenset[str] = frozenset(
+    {
+        "py",
+        "js",
+        "java",
+        "cpp",
+        "c",
+        "h",
+        "cs",
+        "rb",
+        "go",
+        "rs",
+        "php",
+        "html",
+        "css",
+        "sh",
+        "sql",
+        "ts",
+        "jsx",
+        "tsx",
+    }
+)
+TEXT_EXT: frozenset[str] = frozenset(
+    {"txt", "log", "md", "json", "xml", "csv", "yaml", "yml", "toml"}
+)
 
 
 def _get_chardet() -> Any:  # pragma: no cover
@@ -600,38 +628,16 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
     def _convert_bytes_to_text(self, file_ext: str, file_bytes: bytes) -> str:
         # Plain text files with encoding detection
-        if file_ext in ("txt", "log", "md", "json", "xml", "csv", "yaml", "yml"):
+        if file_ext in (TEXT_EXT | CODE_EXT) or mimetypes.types_map.get(f".{file_ext}").startswith(
+            "text"
+        ):
             return self._decode_text(file_bytes)
 
         # PDF files
         elif file_ext == "pdf":
             return self._extract_pdf_text(file_bytes)
 
-        # Code files
-        elif file_ext in (
-            "py",
-            "js",
-            "java",
-            "cpp",
-            "c",
-            "h",
-            "cs",
-            "rb",
-            "go",
-            "rs",
-            "php",
-            "html",
-            "css",
-            "sh",
-            "sql",
-            "ts",
-            "jsx",
-            "tsx",
-        ):
-            return self._decode_text(file_bytes)
-
-        else:
-            raise ValueError(f"Unsupported file type: .{file_ext}")
+        return self._decode_unknown_text(file_bytes)
 
     def _decode_text(self, file_bytes: bytes) -> str:
         chardet = _get_chardet()
@@ -663,6 +669,29 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
         # Last resort: decode with errors='replace' to avoid complete failure
         return file_bytes.decode("utf-8", errors="replace")
+
+    def _decode_unknown_text(self, file_bytes: bytes) -> str:
+        def count_errors(exception: UnicodeError) -> tuple[str, int]:
+            exception = cast(UnicodeDecodeError, exception)
+            count_errors.count += 1
+            return "", exception.end
+
+        count_errors.count = 0
+        codecs.register_error("count_and_ignore", count_errors)
+
+        chardet = _get_chardet()
+        # Use chardet to detect encoding with confidence
+        detected_encoding = chardet.detect(file_bytes).get("encoding")
+        # Fallback to common encodings if detection failed or low confidence
+        encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252", "iso-8859-1"]
+        if detected_encoding and detected_encoding not in encodings:
+            encodings.insert(0, detected_encoding)
+
+        for encoding in encodings:
+            text = file_bytes.decode(encoding, errors="count_and_ignore")
+            if count_errors.count < max(len(text) // 100, 2):
+                return text
+        return "[Binary File]"
 
     def _extract_pdf_text(self, file_bytes: bytes) -> str:
         pypdf = _get_pypdf()
