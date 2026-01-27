@@ -270,6 +270,9 @@ class TestDockerSandboxReadTextHandling:
 
         # Crafted bytes with many decoding errors in common encodings
         raw_bytes = bytearray(range(129, 255)) * 4  # lots of binary data
-
-        result = sandbox._decode_unknown_text(raw_bytes)
-        assert result == "[Binary File]"
+        try:
+            sandbox._decode_unknown_text(raw_bytes)
+        except ValueError as e:
+            assert str(e) == "[Binary File]"
+        else:
+            raise AssertionError("Exception should have been raised.")
