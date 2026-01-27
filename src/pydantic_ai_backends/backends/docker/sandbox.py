@@ -633,7 +633,10 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
             # Convert bytes to string
             file_ext = Path(path).suffix.lower().lstrip(".")
-            full_text = self._convert_bytes_to_text(file_ext, file_bytes)
+            try:
+                full_text = self._convert_bytes_to_text(file_ext, file_bytes)
+            except ValueError as e:
+                return f"[Error: {e}]"
 
             # Split into lines
             lines = full_text.splitlines()
@@ -713,7 +716,7 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
             text = file_bytes.decode(encoding, errors=_COUNTING_ERROR_NAME)
             if _counting_error_handler.count < max(len(text) // 100, 2):
                 return text
-        return "[Binary File]"
+        raise ValueError("[Binary File]")
 
     def _extract_pdf_text(self, file_bytes: bytes) -> str:
         pypdf = _get_pypdf()
@@ -813,7 +816,10 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
             # Decode to string using the same logic as read()
             file_ext = Path(path).suffix.lower().lstrip(".")
-            content = self._convert_bytes_to_text(file_ext, file_bytes)
+            try:
+                content = self._convert_bytes_to_text(file_ext, file_bytes)
+            except ValueError as e:
+                return EditResult(error=str(e))
 
             # Count occurrences
             occurrences = content.count(old_string)
