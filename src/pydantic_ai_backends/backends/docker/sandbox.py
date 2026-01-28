@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import mimetypes
 import re
 import shlex
 import tarfile
@@ -25,6 +26,32 @@ from pydantic_ai_backends.types import (
 
 if TYPE_CHECKING:
     pass
+
+CODE_EXT: frozenset[str] = frozenset(
+    {
+        "py",
+        "js",
+        "java",
+        "cpp",
+        "c",
+        "h",
+        "cs",
+        "rb",
+        "go",
+        "rs",
+        "php",
+        "html",
+        "css",
+        "sh",
+        "sql",
+        "ts",
+        "jsx",
+        "tsx",
+    }
+)
+TEXT_EXT: frozenset[str] = frozenset(
+    {"txt", "log", "md", "json", "xml", "csv", "yaml", "yml", "toml"}
+)
 
 
 def _get_chardet() -> Any:  # pragma: no cover
@@ -575,7 +602,10 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
             # Convert bytes to string
             file_ext = Path(path).suffix.lower().lstrip(".")
-            full_text = self._convert_bytes_to_text(file_ext, file_bytes)
+            try:
+                full_text = self._convert_bytes_to_text(file_ext, file_bytes)
+            except ValueError as e:
+                return f"[Error: {e}]"
 
             # Split into lines
             lines = full_text.splitlines()
@@ -600,38 +630,18 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
     def _convert_bytes_to_text(self, file_ext: str, file_bytes: bytes) -> str:
         # Plain text files with encoding detection
-        if file_ext in ("txt", "log", "md", "json", "xml", "csv", "yaml", "yml"):
+        if file_ext in (TEXT_EXT | CODE_EXT):
+            return self._decode_text(file_bytes)
+
+        mime_type = mimetypes.types_map.get(f".{file_ext}")
+        if mime_type and (mime_type.startswith("text") or "json" in mime_type):
             return self._decode_text(file_bytes)
 
         # PDF files
         elif file_ext == "pdf":
             return self._extract_pdf_text(file_bytes)
 
-        # Code files
-        elif file_ext in (
-            "py",
-            "js",
-            "java",
-            "cpp",
-            "c",
-            "h",
-            "cs",
-            "rb",
-            "go",
-            "rs",
-            "php",
-            "html",
-            "css",
-            "sh",
-            "sql",
-            "ts",
-            "jsx",
-            "tsx",
-        ):
-            return self._decode_text(file_bytes)
-
-        else:
-            raise ValueError(f"Unsupported file type: .{file_ext}")
+        return self._decode_unknown_text(file_bytes)
 
     def _decode_text(self, file_bytes: bytes) -> str:
         chardet = _get_chardet()
@@ -663,6 +673,18 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
         # Last resort: decode with errors='replace' to avoid complete failure
         return file_bytes.decode("utf-8", errors="replace")
+
+    def _decode_unknown_text(self, file_bytes: bytes) -> str:
+        chardet = _get_chardet()
+        # Use chardet to detect encoding with confidence
+        detected_encoding = chardet.detect(file_bytes).get("encoding")
+        # Fallback to common encodings if detection failed or low confidence
+        encodings = {detected_encoding, "utf-8"} if detected_encoding else ["utf-8"]
+        for encoding in encodings:
+            text = file_bytes.decode(encoding, errors="replace")
+            if text.count("\ufffd") < max(len(text) // 100, 2):
+                return text
+        raise ValueError("[Binary File]")
 
     def _extract_pdf_text(self, file_bytes: bytes) -> str:
         pypdf = _get_pypdf()
@@ -762,7 +784,10 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
 
             # Decode to string using the same logic as read()
             file_ext = Path(path).suffix.lower().lstrip(".")
-            content = self._convert_bytes_to_text(file_ext, file_bytes)
+            try:
+                content = self._convert_bytes_to_text(file_ext, file_bytes)
+            except ValueError as e:
+                return EditResult(error=str(e))
 
             # Count occurrences
             occurrences = content.count(old_string)
@@ -868,11 +893,13 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         """Stop and remove the container."""
         import contextlib
 
-        if self._container:
+        container = getattr(self, "_container", None)
+        if container is not None:
             with contextlib.suppress(Exception):
-                self._container.stop()
+                container.stop()
             self._container = None
 
     def __del__(self) -> None:
         """Cleanup container on deletion."""
-        self.stop()
+        if hasattr(self, "_container"):
+            self.stop()
