@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2025-01-28
+
+### Changed
+
+- `DockerSandbox.read()` now supports **any file extension** instead of a hardcoded whitelist.
+  Uses a three-tier approach: known extensions → mimetypes detection → binary detection fallback.
+  Binary files return `[Binary file - cannot display as text]` instead of raising an error.
+  ([#9](https://github.com/vstorm-co/pydantic-ai-backend/pull/9))
+
+### Fixed
+
+- `DockerSandbox.stop()` and `__del__` now handle edge cases where `_container` attribute
+  may not exist, preventing `AttributeError` during cleanup.
+
 ## [0.1.4] - 2025-01-22
 
 ### Changed
