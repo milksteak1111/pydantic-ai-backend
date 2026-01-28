@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import codecs
 import hashlib
 import io
 import mimetypes
@@ -14,7 +13,7 @@ import uuid
 from abc import ABC, abstractmethod
 from io import BytesIO
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from pydantic_ai_backends.types import (
     EditResult,
@@ -53,36 +52,6 @@ CODE_EXT: frozenset[str] = frozenset(
 TEXT_EXT: frozenset[str] = frozenset(
     {"txt", "log", "md", "json", "xml", "csv", "yaml", "yml", "toml"}
 )
-
-_COUNTING_ERROR_NAME = "count_and_ignore"
-
-
-class _CountingErrorHandler:
-    """Callable error handler that tracks decode errors for mypy friendliness."""
-
-    def __init__(self) -> None:
-        self.count = 0
-
-    def __call__(self, exception: UnicodeError) -> tuple[str, int]:
-        exc = cast(UnicodeDecodeError, exception)
-        self.count += 1
-        return "", exc.end
-
-    def reset(self) -> None:
-        self.count = 0
-
-
-_counting_error_handler = _CountingErrorHandler()
-
-
-def _register_counting_error_handler() -> None:
-    try:
-        codecs.lookup_error(_COUNTING_ERROR_NAME)
-    except LookupError:
-        codecs.register_error(_COUNTING_ERROR_NAME, _counting_error_handler)
-
-
-_register_counting_error_handler()
 
 
 def _get_chardet() -> Any:  # pragma: no cover
@@ -712,9 +681,8 @@ class DockerSandbox(BaseSandbox):  # pragma: no cover
         # Fallback to common encodings if detection failed or low confidence
         encodings = {detected_encoding, "utf-8"} if detected_encoding else ["utf-8"]
         for encoding in encodings:
-            _counting_error_handler.reset()
-            text = file_bytes.decode(encoding, errors=_COUNTING_ERROR_NAME)
-            if _counting_error_handler.count < max(len(text) // 100, 2):
+            text = file_bytes.decode(encoding, errors="replace")
+            if text.count("\ufffd") < max(len(text) // 100, 2):
                 return text
         raise ValueError("[Binary File]")
 
